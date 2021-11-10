@@ -1,0 +1,26 @@
+---
+title: "NolanTest"
+author: "Nolan Meyer"
+date: "11/9/2021"
+output: html_document
+---
+
+```{r}
+library(bayesrules)
+library(tidyverse)
+library(rstanarm)
+library(broom.mixed)
+library(tidybayes)
+library(forcats)
+library(bayesplot)
+
+library(readxl)
+USA_TEST <- read_excel("USA_TEST.xlsx")
+```
+
+```{r}
+USA_TEST %>% 
+  ggplot(aes(x = SALES, y = EARNINGS, group = COMPANY)) +
+  geom_point() +
+  theme_classic()
+```

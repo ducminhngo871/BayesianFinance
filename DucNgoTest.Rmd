@@ -1,0 +1,175 @@
+---
+title: "Duc Ngo Test"
+author: "Duc Ngo"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)         # for reading in data, graphing, and cleaning
+library(tidymodels)        # for modeling ... tidily
+library(usemodels)         # for suggesting step_XXX() functions
+library(glmnet)            # for regularized regression, including LASSO
+library(naniar)            # for examining missing values (NAs)
+library(lubridate)         # for date manipulation
+library(moderndive)        # for King County housing data
+library(vip)               # for variable importance plots
+library(rmarkdown)         # for paged tables
+library(dplyr)
+library(janitor)
+library(ggplot2)
+theme_set(theme_minimal()) # my favorite ggplot2 theme :)
+```
+
+```{r}
+library(readr)
+library(readxl)
+USA_TEST <- read_excel("USA_TEST.xlsx")
+```
+
+
+```{r}
+USA_TEST
+```
+
+## Part 1: Data summary: 
+
+```{r}
+names(USA_TEST)
+length(unique(USA_TEST$YEAR))
+dim(USA_TEST)
+```
+
+
+#What our Dataset looks like 
+```{r}
+head(USA_TEST)
+```
+
+#These are the companies we have all 23 years of data. 
+```{r}
+Full_Company <- USA_TEST %>% 
+  group_by(COMPANY, YEAR) %>% 
+  summarize() %>% 
+  count(COMPANY) %>% 
+  filter(n == 23)
+
+Full_Company <- (Full_Company$COMPANY)
+
+length(Full_Company)
+
+FULL_TEST <- USA_TEST %>% 
+  filter(COMPANY %in% Full_Company) 
+```
+
+We have 900 companies that have all 23 years of data. 
+
+#Total number of companies 
+```{r}
+USA_TEST %>% 
+  group_by(COMPANY, YEAR) %>% 
+  summarize() %>% 
+  count(COMPANY)
+```
+
+
+#These are the the total number of years we have
+```{R}
+tabyl(USA_TEST$YEAR) %>% 
+  ggplot(aes(x= `USA_TEST$YEAR`, y = n)) +
+  geom_point()+
+  xlab("Year")+
+  ylab("Number of Observations")
+```
+
+Generally, as the years go on, more companies join our dataset. 
+
+```{r}
+FULL_TEST[FULL_TEST == 0] <- NA
+FULL_TEST <- FULL_TEST %>% select(-`Sell`)
+FULL_TEST <- na.omit(FULL_TEST)
+
+test <- FULL_TEST %>% 
+  group_by(COMPANY, YEAR) %>% 
+  summarize() %>% 
+  count(COMPANY) %>% 
+  filter(n == 23) 
+
+colSums(is.na(FULL_TEST))
+```
+
+There are a total of 7004 different companies in our data set. 
+
+
+II/ Visualization: 
+
+```{r}
+meanUSA <- USA_TEST %>% 
+  group_by(YEAR) %>% 
+  summarise(meanMarket_cap = mean(`MARKET CAP`), 
+            meanEarnings = mean(EARNINGS), 
+            meanCOGS = mean(COGS), 
+            meanSALES = mean(SALES), 
+            meanCASH = mean(CASH), 
+            meanInvestments = mean(INVESTMENTS), 
+            meanReceivable = mean(RECEIVABLE), 
+            meanInventory = mean(INVENTORY), 
+            meanDebts = mean(DEBTS)) 
+```
+
+
+```{r}
+sumUSA <- USA_TEST %>% 
+  group_by(YEAR) %>% 
+  summarise(sumMarket_cap = sum(`MARKET CAP`), 
+            sumEarnings = sum(EARNINGS), 
+            sumCOGS = sum(COGS), 
+            sumSALES = sum(SALES), 
+            sumCASH = sum(CASH), 
+            sumInvestments = sum(INVESTMENTS), 
+            sumReceivable = sum(RECEIVABLE), 
+            sumInventory = sum(INVENTORY), 
+            sumDebts = sum(DEBTS)) 
+```
+
+```{r}
+sumUSA %>% 
+  ggplot(aes(x = YEAR, y = sumMarket_cap)) + geom_point()
+```
+
+```{r}
+meanUSA %>% 
+  ggplot(aes(x = YEAR, y = meanEarnings)) + geom_point()
+```
+
+
+
+
+```{r}
+meanUSA %>% 
+  ggplot(aes(x = YEAR, y = meanCOGS)) + geom_point()
+```
+
+```{r}
+meanUSA %>% 
+  ggplot(aes(x = YEAR, y = meanSALES)) + geom_point()
+```
+
+```{r}
+meanUSA %>% 
+  ggplot(aes(x = YEAR, y = meanCASH)) + geom_point()
+```
+
+```{r}
+meanUSA %>% 
+  ggplot(aes(x = YEAR, y = meanInvestments)) + geom_point()
+```
+
+
+
+
+
+
