@@ -49,7 +49,12 @@ data_2 %>%
 ```
 
 ```{r}
+sumMKTCAP <- data_2 %>% 
+group_by(YEAR) %>% 
+  summarize(sumMKTCAP = sum(MARKET.CAP))
 
+sumMKTCAP %>% 
+  ggplot(aes(x = YEAR, y = sumMKTCAP)) + geom_line() + theme_classic()
 ```
 
 
