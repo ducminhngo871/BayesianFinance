@@ -53,7 +53,7 @@ easy_model <- stan_glm(
 ```{r}
 data %>%
   add_fitted_draws(easy_model, n = 200, color = "blue") %>%
-  ggplot(aes(x = EARNINGS, y = SALES)) +
+  ggplot(aes(x = EARNINGS, y = SALES)) + #flip x and y??
     geom_line(aes(y = .value, group = .draw), alpha = 0.15) + 
     geom_point(data = data)
 ```
