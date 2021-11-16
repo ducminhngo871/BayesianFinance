@@ -66,6 +66,38 @@ ggplot(data, aes(x = EARNINGS, y = SALES, group = COMPANY)) +
     geom_smooth(method = "lm", se = FALSE)
 ```
 
+```{r}
+top50Companies <- read.csv("TOP_50_COMPANIES.csv")
+```
+
+```{r}
+# Simulate the prior model
+model_1_prior_with_hiar <- stan_glmer(
+  EARNINGS ~ SALES + (1 | COMPANY), data = top50Companies, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = TRUE)
+
+tidy(model_1_prior_with_hiar, conf.int = TRUE)
+
+model_1_post_with_hiar <- stan_glmer(
+  EARNINGS ~ SALES + (1 | COMPANY), data = top50Companies, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = FALSE)
+
+tidy(model_1_post_with_hiar, conf.int = TRUE)
+
+
+# Check out the prior specifications
+prior_summary(model_1_prior_with_hiar)
+```
+
+```{r}
+prior_summary(model_1_prior_with_hiar)
+```
+
+
 
 
 
