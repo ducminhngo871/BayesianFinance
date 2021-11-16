@@ -47,9 +47,19 @@ data_2 %>%
   theme_minimal()+
   theme(axis.title.x = element_blank())
 ```
-
+#Top 50 Companies 
 ```{r}
+temp <- data_2 %>% 
+  group_by(COMPANY) %>% 
+  summarize(count = n(), 
+            mean_MC = mean(MARKET.CAP)) %>% 
+  filter(count == 23) %>% 
+  arrange(desc(mean_MC)) %>% 
+  head(50)
+temp <- temp$COMPANY
 
+data_2 %>%  
+  filter(COMPANY %in% temp)
 ```
 
 
