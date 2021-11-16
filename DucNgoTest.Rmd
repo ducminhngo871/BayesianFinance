@@ -71,6 +71,11 @@ S_and_P_500 %>%
   arrange(desc(`MARKET CAP`))
 ```
 
+```{r}
+write.csv(S_and_P_500, "S_and_P_500.csv")
+```
+
+
 
 ## Part 1: Data summary: 
 
