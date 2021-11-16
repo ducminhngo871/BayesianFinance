@@ -40,13 +40,14 @@ data_2 <- read.csv("FINALDATASET.csv")
 
 ```{r}
 data_2 %>% 
-  group_by(Sector) %>% 
-  filter(YEAR == 2020) %>% 
-  summarize(count = n()) %>% ggplot(aes(y=count, x = Sector, fill = Sector))+
+  group_by(Sector, YEAR) %>% 
+  summarize(count = n()) %>% 
+  summarize(mean = mean(count)) %>% ggplot(aes(y=mean, x = Sector, fill = Sector))+
   geom_col(position = "dodge") + 
   theme_minimal()+
   theme(axis.title.x = element_blank())
 ```
+
 ```{r}
 
 ```
