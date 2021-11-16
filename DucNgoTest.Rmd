@@ -109,7 +109,8 @@ We have 900 companies that have all 23 years of data.
 S_and_P_500 %>% 
   group_by(COMPANY, YEAR) %>% 
   summarize() %>% 
-  count(COMPANY)
+  count(COMPANY) %>% 
+  arrange(n)
 ```
 
 
