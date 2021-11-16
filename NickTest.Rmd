@@ -50,6 +50,8 @@ top_50 <- (top_50$COMPANY)
 
 top_50 <- data %>% 
     filter(COMPANY %in% top_50)
+
+write.csv(top_50, "TOP_50_COMPANIES")
   
 top_50 %>% 
   ggplot(aes(x = SALES, y = EARNINGS)) +
