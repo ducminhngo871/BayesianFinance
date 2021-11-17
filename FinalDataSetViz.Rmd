@@ -58,8 +58,19 @@ temp <- data_2 %>%
   head(50)
 temp <- temp$COMPANY
 
-data_2 %>%  
-  filter(COMPANY %in% temp)
+data_2 <- data_2 %>%  
+  filter(COMPANY %in% temp)  
+```
+
+#Relationship between EARNINGS and SALES among top 50 companies MarketCap 
+
+```{r}
+data_2 %>% 
+  ggplot(aes(y = EARNINGS, x= SALES, color = Sector))+
+  geom_point(alpha = 0.20)+
+  geom_smooth(method = 'lm', formula = y ~ x)+
+  theme_minimal()+
+  ggtitle("Sales and Earnings Relationship by Sector \n Among top 50 Companies by Market Cap")
 ```
 
 
