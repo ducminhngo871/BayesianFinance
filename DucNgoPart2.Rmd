@@ -33,50 +33,86 @@ theme_set(theme_minimal()) # my favorite ggplot2 theme :)
 
 ```{r}
 library(readr)
-data <- read_csv("S_and_P_500.csv")
+final_dataset <- read_csv("FINALDATASET.csv")
 ```
 
 ```{r}
-data <- data %>% 
-  select(- `...1`)
+top_50 <- final_dataset %>% 
+  filter(YEAR == 2021) %>% 
+  arrange(EARNINGS)  %>% 
+  tail(50)
+
+top_50 <- (top_50$COMPANY)
+
+top_50 <- final_dataset %>% 
+    filter(COMPANY %in% top_50)
+
+write.csv(top_50, "TOP_50_COMPANIES_update.csv")
 ```
+
+```{r}
+top_50_update <- top_50 %>% 
+  drop_na()
+```
+
+### First simple model: without the hiarchical model- predicting the earnings using only the last year's earnings and sales.
 
 ```{r}
 # Simulate the posterior
 easy_model <- stan_glm(
-  EARNINGS ~ SALES, data = data,
+  Earnings_next_year ~ EARNINGS + SALES, data = top_50_update,
   family = gaussian,
   prior_PD = FALSE,
   chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
 ```
 
+
 ```{r}
-data %>%
-  add_fitted_draws(easy_model, n = 200, color = "blue") %>%
-  ggplot(aes(x = EARNINGS, y = SALES)) + #flip x and y??
+# Plot 200 posterior plausible model lines
+top_50_update %>%
+  add_fitted_draws(easy_model, n = 200) %>%
+  ggplot(aes(x = Earnings_next_year, y = EARNINGS)) +
     geom_line(aes(y = .value, group = .draw), alpha = 0.15) + 
-    geom_point(data = data)
+    geom_point(data = top_50_update)
 ```
+
 
 ```{r}
 tidy(easy_model, conf.int = TRUE, conf.level = 0.95)
 ```
+
 ```{r}
-ggplot(data, aes(x = EARNINGS, y = SALES, group = COMPANY)) + 
-    geom_smooth(method = "lm", se = FALSE)
+tidy(easy_model, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
 ```
 
 ```{r}
-top50Companies <- read.csv("TOP_50_COMPANIES.csv")
+pp_check(easy_model)
 ```
+
+
+
+### Hiarchical model: 
+
+
+#### Part 1: Clean the NA value first
+
+```{r}
+final_dataset2 <- final_dataset %>% 
+  drop_na()
+```
+
+
+
 
 ```{r}
 # Simulate the prior model
 model_1_prior_with_hiar <- stan_glmer(
-  EARNINGS ~ SALES + (1 | COMPANY), data = top50Companies, 
+  Earnings_next_year ~ EARNINGS + (1 | COMPANY), data = top_50_update, 
   family = gaussian,
   chains = 4, iter = 5000*2, seed = 84735, 
   prior_PD = TRUE)
+```
+
 
 tidy(model_1_prior_with_hiar, conf.int = TRUE)
 
@@ -88,14 +124,37 @@ model_1_post_with_hiar <- stan_glmer(
 
 tidy(model_1_post_with_hiar, conf.int = TRUE)
 
-
+```{r}
 # Check out the prior specifications
 prior_summary(model_1_prior_with_hiar)
 ```
 
+
 ```{r}
-prior_summary(model_1_prior_with_hiar)
+final_dataset2%>%
+  add_predicted_draws(model_1_prior_with_hiar, n = 100) %>%
+  ggplot(aes(x = Earnings_next_year)) +
+    geom_density(aes(x = .prediction, group = .draw)) 
 ```
+
+```{r}
+model_1 <- update(model_1_prior_with_hiar, prior_PD = FALSE, refresh = 0)
+pp_check(model_1)
+```
+
+Check the accuracy of the model: 
+
+```{r}
+tidy(model_1, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
+```
+
+```{r}
+tidy(model_1, effects = "ran_pars")
+```
+
+
+
+
 
 
 
