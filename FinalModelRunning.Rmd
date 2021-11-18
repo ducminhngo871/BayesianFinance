@@ -1,0 +1,55 @@
+---
+title: "FinalModelRunning"
+author: "Duc Ngo"
+output: html_document
+---
+
+```{r}
+library(tidyverse)         # for reading in data, graphing, and cleaning
+library(tidymodels)        # for modeling ... tidily
+library(usemodels)         # for suggesting step_XXX() functions
+library(glmnet)            # for regularized regression, including LASSO
+library(naniar)            # for examining missing values (NAs)
+library(lubridate)         # for date manipulation
+library(moderndive)        # for King County housing data
+library(vip)               # for variable importance plots
+library(rmarkdown)         # for paged tables
+library(dplyr)
+library(janitor)
+library(ggplot2)
+theme_set(theme_minimal()) # my favorite ggplot2 theme :)
+```
+
+```{r}
+finaldataset <- read_csv("FINALDATASET.csv")
+```
+
+```{r}
+finaldataset_without_na <- finaldataset %>% 
+  drop_na()
+```
+
+
+
+### First model: Easy, simple model to predict EARNINGS_NEXT_YEAR using EARNINGS in this year
+
+```{r}
+# Simulate the prior model
+model_1_prior <- stan_glmer(
+  Earnings_next_year ~ EARNINGS + (EARNINGS | COMPANY), data = finaldataset_without_na, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = TRUE)
+```
+
+```{r}
+# Check out the prior specifications
+prior_summary(model_1_prior)
+```
+
+
+
+
+
+
+

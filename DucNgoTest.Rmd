@@ -227,6 +227,13 @@ ggplot(USA_TEST, aes(x = EARNINGS)) +
 ```
 
 
+### TO save the model: use save RDS
+
+use: {r eval = FALSE} to not use it. 
+
+
+
+
 
 
 
