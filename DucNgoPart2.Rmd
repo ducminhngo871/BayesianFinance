@@ -168,6 +168,28 @@ model_2_more_complex_with_hiar <- stan_glmer(
 pp_check(model_2_more_complex_with_hiar)
 ```
 
+```{r}
+tidy(model_2_more_complex_with_hiar, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
+```
+
+```{r}
+
+
+smaller <- top_50_update %>% 
+  select(Earnings_next_year, EARNINGS, SALES, COMPANY, YEAR)
+
+smaller %>% 
+  count(COMPANY)
+
+head(smaller)
+
+
+pred <- posterior_predict(model_1, newdata = top_50_update %>% filter(YEAR == 2020))
+dim(pred)
+
+prediction_summary
+```
+
 
 
 
