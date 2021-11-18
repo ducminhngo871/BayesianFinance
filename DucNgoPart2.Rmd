@@ -153,6 +153,27 @@ tidy(model_1, effects = "ran_pars")
 ```
 
 
+#### Maybe better model?
+
+```{r}
+# Simulate the prior model
+model_2_more_complex_with_hiar <- stan_glmer(
+  Earnings_next_year ~ EARNINGS + SALES +  (1 | COMPANY), data = top_50_update, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = FALSE)
+```
+
+```{r}
+pp_check(model_2_more_complex_with_hiar)
+```
+
+
+
+
+
+
+
 
 
 
