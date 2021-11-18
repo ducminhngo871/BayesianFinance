@@ -34,7 +34,6 @@ theme_set(theme_minimal()) # my favorite ggplot2 theme :)
 
 ```{r}
 library(readr)
-data <- read_csv("S_and_P_500.csv")
 data_2 <- read.csv("FINALDATASET.csv")
 ```
 
