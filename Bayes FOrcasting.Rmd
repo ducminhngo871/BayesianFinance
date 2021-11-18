@@ -34,10 +34,10 @@ rm(g1,g2,g3,g4,g5,dbirth)
 
 ```{r}
 APPL <- data %>% 
-  filter(COMPANY == 'AAPL') %>% 
+  filter(COMPANY == 'AMZN') %>% 
   select(EARNINGS) %>% 
   arrange(EARNINGS)
-APPL
+
 vector <- APPL$EARNINGS
 class(vector)
 class(myvector)
