@@ -76,7 +76,8 @@ sumUSA <- data %>%
             sumDebts = sum(DEBTS)) 
 
 sumUSA %>% 
-  ggplot(aes(x = YEAR, y = sumMarket_cap)) + geom_line() +labs()
+  ggplot(aes(x = YEAR, y = sumMarket_cap)) + geom_line() +labs(x = "Year")+
+  ggtitle("Market Cap within Dataset")
 
 #Third Viz
 temp <- data %>% 
