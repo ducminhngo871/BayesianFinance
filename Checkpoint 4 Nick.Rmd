@@ -67,18 +67,24 @@ Our data includes financial information on companies in the S&P 500 stock index 
 #Editing Variable
 
 ```{r}
+#Scaling Variables of Interest
 data <- data %>% 
   mutate(EARNINGS_Scaled = EARNINGS/1000000000,
          CASH_Scaled = CASH/1000000000,
          MARKET.CAP_Scaled = MARKET.CAP/1000000000,
-         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
-         Earnings_1_years_ago = lead(EARNINGS_Scaled),
-         Earnings_2_years_ago = lead(EARNINGS_Scaled, n =2),
-         Earnings_3_years_ago = lead(EARNINGS_Scaled, n =3),
-         Earnings_4_years_ago = lead(EARNINGS_Scaled, n =4))
+         Earnings_next_year_Scaled = Earnings_next_year/1000000000)
 
- library(data.table)
- data[, lag.value:=c(NA, value[-.N]), by=COMPANY]
+#Adding Lagged Variables
+
+testdata %>%
+  group_by(COMPANY)%>%
+  mutate(EARNINGS_1_YEAR_AGO = lead(EARNINGS, n = 1), 
+         EARNINGS_2_YEAR_AGO = lead(EARNINGS, n = 2),
+         EARNINGS_3_YEAR_AGO = lead(EARNINGS, n = 3),
+         EARNINGS_4_YEAR_AGO = lead(EARNINGS, n = 4))
+
+library(data.table)
+data[, lag.value:= c(NA, EARNINGS_Scaled[-.N]), by(COMPANY)]
   data
 ```
 
