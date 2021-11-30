@@ -1,0 +1,40 @@
+---
+title: "Untitled"
+author: "NicholasDi"
+date: "11/26/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+#Setup
+install.packages("rvest")
+library(rvest)
+library(dplyr)
+library(lubridate)
+library(stringr)
+link = "https://www.snowpak.com/usa/best-ski-resorts"
+page = read_html(link)
+name = page %>% html_nodes('h2') %>% html_text()
+dates = page %>% html_nodes('.jHpJNR li') %>% html_text()
+
+#Clean Dates
+dates <- gsub("\\*.*","", dates)
+name <- gsub(".*\\.","", name)
+
+#Data Cleaning - Resort Name
+name = as.data.frame(name)
+name$index <- 1:nrow(name)
+
+#Data Cleaning Open and Close Dates
+dates = as.data.frame(dates)
+dates$index <- rep(1:(nrow(dates)/2), each = 2)
+dates <- dates %>% 
+  group_by(index) %>% 
+  summarise(team_no_nerged = paste(dates, collapse = "-"))
+
+#Joining
+data <- left_join(name, dates)
+data <- data %>% 
+  select(-'index')
+```
+

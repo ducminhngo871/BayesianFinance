@@ -64,7 +64,19 @@ Our data includes financial information on companies in the S&P 500 stock index 
 | M1SL_PC1            | M1, Billions of Dollars, Annual, Seasonally Adjusted                                                        |
 | Earnings_next_year  | The amount of money in dollars that the company earns in the following year                                 |
 | PROFIT              | The percent change of the stock price over the given year [(SELL - PRICE) / PRICE] * 100                    |
+#Editing Variable
 
+```{r}
+data <- data %>% 
+  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
+         CASH_Scaled = CASH/1000000000,
+         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
+         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
+         Earnings_1_years_ago = lead(EARNINGS_Scaled),
+         Earnings_2_years_ago = lead(EARNINGS_Scaled, n =2),
+         Earnings_3_years_ago = lead(EARNINGS_Scaled, n =3),
+         Earnings_4_years_ago = lead(EARNINGS_Scaled, n =4))
+```
 
 
 # 2. Data summaries
