@@ -24,7 +24,6 @@ library(janitor)
 library(ggplot2)
 library(dplyr)
 library(bayesforecast)    # Bayes Forecasting (Playing around) 
-<<<<<<< HEAD
 library(bayesrules)
 library(tidyverse)
 library(rstanarm)
@@ -32,9 +31,6 @@ library(broom.mixed)
 library(tidybayes)
 library(bayesplot)
 library(ggplot2)
-
-=======
->>>>>>> 45920d3b0aee869f991bb4eee8dc7e739023e79e
 ```
 
 ```{r, echo=FALSE}
