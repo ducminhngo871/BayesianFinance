@@ -76,16 +76,12 @@ data <- data %>%
 
 #Adding Lagged Variables
 
-testdata %>%
-  group_by(COMPANY)%>%
-  mutate(EARNINGS_1_YEAR_AGO = lead(EARNINGS, n = 1), 
-         EARNINGS_2_YEAR_AGO = lead(EARNINGS, n = 2),
-         EARNINGS_3_YEAR_AGO = lead(EARNINGS, n = 3),
-         EARNINGS_4_YEAR_AGO = lead(EARNINGS, n = 4))
-
-library(data.table)
-data[, lag.value:= c(NA, EARNINGS_Scaled[-.N]), by(COMPANY)]
-  data
+data <- data %>% 
+  group_by(COMPANY) %>%
+  mutate(EARNINGS_1_YEAR_AGO = lead(EARNINGS_Scaled, n = 1), 
+         EARNINGS_2_YEAR_AGO = lead(EARNINGS_Scaled, n = 2),
+         EARNINGS_3_YEAR_AGO = lead(EARNINGS_Scaled, n = 3),
+         EARNINGS_4_YEAR_AGO = lead(EARNINGS_Scaled, n = 4))
 ```
 
 
