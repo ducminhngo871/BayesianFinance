@@ -75,7 +75,7 @@ Our data includes financial information on companies in the S&P 500 stock index 
 
 # 2. Data summaries
 
-Demonstrate that you have the data imported and ready to go in RStudio. Specifically, to each dataset,applyandincludetheoutputforthefollowingfunctions:dim(), names(), head(), summary(). You do not need to write anything.
+Demonstrate that you have the data imported and ready to go in RStudio. Specifically, to each data set, apply and include the output for the following functions:dim(), names(), head(), summary(). You do not need to write anything.
 
 ```{r}
 dim(data)
@@ -87,8 +87,11 @@ summary(data)
 # 3. Data viz
 
 In your final report, elements such as data visualization will be just as important as the models you build. Construct and discuss a series of 4 data visualizations that inform your research questions. Combined, these viz should:
+
 • tell a story and follow a natural progression, starting with simple univariate plots and ending with multivariate plots;
+
 • help the readers better understand the structure of your data; and
+
 • inform the next step in your analysis: model building.
 
 ```{r}
@@ -140,11 +143,14 @@ data_2 %>%
 
 # 4. Model building
 Build and analyze 1–3 Bayesian models which will help inform your research questions. (Build- ing 1 model will be worth full credit, but you’re encouraged to go beyond 1 model if possible.) Keep in mind:
+
 • Scaffolding is important! Model 1 should be the simplest model you can think of. You can build up from there, adding extra parameters/terms/layers as needed. THINK: is Y quantitative? Categorical? What’s a reasonable likelihood structure for our model? Are the data grouped?
+
 • For each model, define notation, specify the model, provide a brief model interpretation (eg: what do the parameters mean).
+
 • For each model, simulate the posterior in R and briefly summarize your conclusions.
 
-Here, we have created three models: one model with the simple regression between Earnings_next_year with Earnings, one hierarchical model with earnings_next_year with earnings and the final model using bayesian forecasting. 
+Here, we have created three models: one model with the simple regression between Earnings_next_year with Earnings, one hierarchical model with earnings_next_year with earnings and the final model using Bayesian forecasting. 
 
 Moreover, due to the fact that it takes a long time to run, we only include top 50 highest market cap company in the list. 
 
@@ -195,6 +201,8 @@ tidy(model_1, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
 pp_check(model_1)
 ```
 
+### The Second Model:
+
 The second model we think will be the hierarchical model with earnings_next_year and earnings.
 
 ```{r}
@@ -240,7 +248,7 @@ The prediction for the model:
 pred <- posterior_predict(model_2, newdata = top_50_update %>% filter(YEAR == 2020))
 ```
 
-The final model: using Bayesian forecasting: 
+### The final model: using Bayesian forecasting
 
 Here, right now, we can only predict one variable only. We will try to predict for the whole dataset in the future. 
 
@@ -282,6 +290,7 @@ sf1
 check_residuals(sf1)
 autoplot(forecast(object = sf1,h = 12))
 ```
+
 # 5. Next steps
 
 Identify your next steps. What improvements do you plan to make? Are there any ways you plan to enhance your presentation of this analysis (eg: shiny apps, animations, engaging graphics)?
@@ -290,10 +299,13 @@ We plan on continuing to focus on improving our hierarchical model in the coming
 
 
 # 6. Participation
-• If your project group is working on a collaborative project, specify what eachg roupmember (including yourself) contributed to this checkpoint.
+
+• If your project group is working on a collaborative project, specify what each groupmember (including yourself) contributed to this checkpoint.
 
 Duc: Gathering/cleaning data, building hierarchical model, general visualization input
+
 Nick: Created data visualizations, helped w/ model building, general project input
+
 Nolan: Created data visualizations, helped w/ model building, project checkpoint doc.
 
 
