@@ -34,7 +34,7 @@ data <- read.csv("FINALDATASET.csv")
 
 # 1. Introducing your data
 
-Write an introductory paragraph about your data. This should include your data source(s), a narrative description of how/when/why/by whom these data were collected, and a codebook or table describing the variables you plan to use in your analysis.
+Our data includes financial information on companies in the S&P 500 stock index from 1999-2021. This information was scraped from Yahoo Finance and collected in a csv format for data analysis. The information includes metrics like sales, earnings, cogs, stock price, and market sector. The goal is to analyze and model this data to better improve projections for a company’s future metrics, like earnings. The variables in the data set are described below:
 
 
 
