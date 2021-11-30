@@ -1,0 +1,172 @@
+---
+title: "Checkpoint 4"
+author: "Nicholas Di, Duc Ngo, Nolan Meyer"
+date: "11/30/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)         # for reading in data, graphing, and cleaning
+library(tidymodels)        # for modeling ... tidily
+library(usemodels)         # for suggesting step_XXX() functions
+library(glmnet)            # for regularized regression, including LASSO
+library(naniar)            # for examining missing values (NAs)
+library(lubridate)         # for date manipulation
+library(moderndive)        # for King County housing data
+library(vip)               # for variable importance plots
+library(rmarkdown)         # for paged tables
+library(dplyr)
+library(janitor)
+library(ggplot2)
+library(dplyr)
+library(bayesforecast)    # Bayes Forecasting (Playing around) 
+
+```
+
+```{r}
+#Loading Dataset 
+data <- read.csv("FINALDATASET.csv")
+```
+
+# 1. Introducing your data
+
+Our data includes financial information on companies in the S&P 500 stock index from 1999-2021. This information was scraped from Yahoo Finance in November of 2021, and collected in a csv format for data analysis. The information includes metrics like sales, earnings, cogs, stock price, and market sector. The goal is to analyze and model this data to better improve projections for a company’s future metrics, like earnings. The variables in the data set are described below:
+
+
+
+| Variable            | Meaning                                                                                                     |
+|---------------------|-------------------------------------------------------------------------------------------------------------|
+| YEAR                | The financial year of the company                                                                           |
+| COMPANY             | The company’s stock abbreviation symbol                                                                     |
+| PRICE               | The stock price of the company on the last day of March of that year                                        |
+| SELL                | The stock price of the company after one year (on the first day of March)                                   |
+| VOLUME              | The total number of shares the company has at that moment                                                   |
+| MARKET CAP          | The total market capitalization of the company (Volume * Price)                                             |
+| EARNINGS            | The earnings in dollars for the previous year for the given company                                         |
+| COGS                | The Cost of Goods Sold in dollars for the previous year for the given company                               |
+| SALES               | How much the company sold in dollars last year                                                              |
+| CASH                | How much cash the company has in dollars at the end of the previous year                                    |
+| INVESTMENTS         | How much investments the company has in dollars at the end of the previous year                             |
+| RECEIVABLE          | How much short term receivable the company has in dollars at the end of the previous year                   |
+| INVENTORY           | How much inventory the company has in dollars at the end of the previous year                               |
+| DEBTS               | How much money the company owes in dollars at the end of the previous year (short-term debt)                |
+| Name                | The full name of the company                                                                                |
+| Sector              | The name of the sector that the company is a part of                                                        |
+| CPALTT01USM657N_PC1 | Consumer Price Index: Total All Items for the United States, Percent Change from Year Ago, Annual           |
+| GDP                 | Gross Domestic Product, Billions of Dollars, Annual                                                         |
+| GDP_PC1             | Gross Domestic Product, Percent Change from Year Ago                                                        |
+| T10Y2Y              | 10-Year Treasury Constant Maturity Minus 2-Year Treasury Constant Maturity, Annual, Not Seasonally Adjusted |
+| M1SL                | M1, Percent Change from Year Ago, Annual, Seasonally Adjusted                                               |
+| M1SL_PC1            | M1, Billions of Dollars, Annual, Seasonally Adjusted                                                        |
+| Earnings_next_year  | The amount of money in dollars that the company earns in the following year                                 |
+| PROFIT              | The percent change of the stock price over the given year [(SELL - PRICE) / PRICE] * 100                    |
+#Editing Variable
+
+```{r}
+data <- data %>% 
+  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
+         CASH_Scaled = CASH/1000000000,
+         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
+         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
+         Earnings_1_years_ago = lead(EARNINGS_Scaled),
+         Earnings_2_years_ago = lead(EARNINGS_Scaled, n =2),
+         Earnings_3_years_ago = lead(EARNINGS_Scaled, n =3),
+         Earnings_4_years_ago = lead(EARNINGS_Scaled, n =4))
+
+ library(data.table)
+ data[, lag.value:=c(NA, value[-.N]), by=COMPANY]
+  data
+```
+
+
+# 2. Data summaries
+
+Demonstrate that you have the data imported and ready to go in RStudio. Specifically, to each dataset,applyandincludetheoutputforthefollowingfunctions:dim(), names(), head(), summary(). You do not need to write anything.
+
+```{r}
+dim(data)
+names(data)
+head(data)
+summary(data)
+```
+
+# 3. Data viz
+
+In your final report, elements such as data visualization will be just as important as the models you build. Construct and discuss a series of 4 data visualizations that inform your research questions. Combined, these viz should:
+• tell a story and follow a natural progression, starting with simple univariate plots and ending with multivariate plots;
+• help the readers better understand the structure of your data; and
+• inform the next step in your analysis: model building.
+
+```{r}
+#First Viz
+tabyl(data$YEAR) %>% 
+  ggplot(aes(x= `data$YEAR`, y = n)) +
+  geom_line()+
+  xlab("")+
+  ylab("") + 
+  labs(title = "Number of Companies Within the Period") + 
+  theme_minimal()
+
+#Second Viz 
+sumUSA <- data %>% 
+  group_by(YEAR) %>% 
+  summarise(sumMarket_cap = sum(`MARKET.CAP`), 
+            sumEarnings = sum(EARNINGS), 
+            sumCOGS = sum(COGS), 
+            sumSALES = sum(SALES), 
+            sumCASH = sum(CASH), 
+            sumInvestments = sum(INVESTMENTS), 
+            sumReceivable = sum(RECEIVABLE), 
+            sumInventory = sum(INVENTORY), 
+            sumDebts = sum(DEBTS)) 
+
+sumUSA %>% 
+  ggplot(aes(x = YEAR, y = sumMarket_cap)) + geom_line() + theme_minimal() + labs(x = "Year") +
+  ggtitle("Market Cap within Dataset")
+
+#Third Viz
+temp <- data %>% 
+  group_by(COMPANY) %>% 
+  summarize(count = n(), 
+            mean_MC = mean(MARKET.CAP)) %>% 
+  filter(count == 23) %>% 
+  arrange(desc(mean_MC)) %>% 
+  head(50)
+temp <- temp$COMPANY
+data_2 <- data %>%  
+  filter(COMPANY %in% temp) 
+data_2 %>% 
+  ggplot(aes(y = EARNINGS, x= SALES, color = Sector))+
+  geom_point(alpha = 0.20)+
+  geom_smooth(method = 'lm', formula = y ~ x)+
+  theme_minimal()+
+  ggtitle("Sales and Earnings Relationship by Sector \n Among top 50 Companies by Market Cap")
+```
+
+
+# 4. Model building
+Build and analyze 1–3 Bayesian models which will help inform your research questions. (Build- ing 1 model will be worth full credit, but you’re encouraged to go beyond 1 model if possible.) Keep in mind:
+• Scaffolding is important! Model 1 should be the simplest model you can think of. You can build up from there, adding extra parameters/terms/layers as needed. THINK: is Y quantitative? Categorical? What’s a reasonable likelihood structure for our model? Are the data grouped?
+• For each model, define notation, specify the model, provide a brief model interpretation (eg: what do the parameters mean).
+• For each model, simulate the posterior in R and briefly summarize your conclusions.
+
+
+# 5. Next steps
+
+Identify your next steps. What improvements do you plan to make? Are there any ways you plan to enhance your presentation of this analysis (eg: shiny apps, animations, engaging graphics)?
+
+We plan on continuing to focus on improving our hierarchical model in the coming phases. We hope to improve it so it better models the data and has better predictive accuracy. We are still thinking about how we will go about presenting our project and in what medium we will do it in. We are leaning towards more of a blog post type of work as this may be better suited for a broader audience that could be interested in our project.
+
+
+# 6. Participation
+• If your project group is working on a collaborative project, specify what eachg roupmember (including yourself) contributed to this checkpoint.
+
+Duc: Gathering/cleaning data, building hierarchical model, general visualization input
+Nick: Created data visualizations, helped w/ model building, general project input
+Nolan: Created data visualizations, helped w/ model building, project checkpoint doc.
+
+
