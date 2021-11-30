@@ -6,10 +6,10 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
-```{r}
+```{r, echo=FALSE}
 library(tidyverse)         # for reading in data, graphing, and cleaning
 library(tidymodels)        # for modeling ... tidily
 library(usemodels)         # for suggesting step_XXX() functions
@@ -24,6 +24,7 @@ library(janitor)
 library(ggplot2)
 library(dplyr)
 library(bayesforecast)    # Bayes Forecasting (Playing around) 
+<<<<<<< HEAD
 library(bayesrules)
 library(tidyverse)
 library(rstanarm)
@@ -32,9 +33,11 @@ library(tidybayes)
 library(bayesplot)
 library(ggplot2)
 
+=======
+>>>>>>> 45920d3b0aee869f991bb4eee8dc7e739023e79e
 ```
 
-```{r}
+```{r, echo=FALSE}
 #Loading Dataset 
 data <- read.csv("FINALDATASET.csv")
 ```
@@ -52,7 +55,7 @@ Our data includes financial information on companies in the S&P 500 stock index 
 | PRICE               | The stock price of the company on the last day of March of that year                                        |
 | SELL                | The stock price of the company after one year (on the first day of March)                                   |
 | VOLUME              | The total number of shares the company has at that moment                                                   |
-| MARKET CAP          | The total market capitalization of the company (Volume * Price)                                             |
+| MARKET.CAP          | The total market capitalization of the company (Volume * Price)                                             |
 | EARNINGS            | The earnings in dollars for the previous year for the given company                                         |
 | COGS                | The Cost of Goods Sold in dollars for the previous year for the given company                               |
 | SALES               | How much the company sold in dollars last year                                                              |
