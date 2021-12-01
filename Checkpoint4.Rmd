@@ -70,7 +70,8 @@ Our data includes financial information on companies in the S&P 500 stock index 
 | M1SL_PC1            | M1, Billions of Dollars, Annual, Seasonally Adjusted                                                        |
 | Earnings_next_year  | The amount of money in dollars that the company earns in the following year                                 |
 | PROFIT              | The percent change of the stock price over the given year [(SELL - PRICE) / PRICE] * 100                    |
-#Editing Variable
+
+# Editing Variables
 
 ```{r}
 data <- data %>% 
