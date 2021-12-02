@@ -76,7 +76,6 @@ data <- data %>%
          SALES_Scaled = SALES/1000000000)
 
 #Adding Lagged Variables
-s
 data <- data %>% 
   group_by(COMPANY) %>%
   mutate(EARNINGS_1_YEAR_AGO = lead(EARNINGS_Scaled, n = 1), 
