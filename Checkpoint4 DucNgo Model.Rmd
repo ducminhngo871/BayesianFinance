@@ -58,7 +58,14 @@ data <- data %>%
          SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
          SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
          SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
+         
 ```
+
+```{r}
+data <- data %>% 
+  select(Earnings_next_year_Scaled, EARNINGS_1_YEAR_AGO, EARNINGS_2_YEAR_AGO, EARNINGS_3_YEAR_AGO, EARNINGS_4_YEAR_AGO, Sector, COMPANY)
+```
+
 
 
 # 1. Introducing your data
@@ -262,6 +269,34 @@ The prediction for the model:
 ```{r}
 pred <- posterior_predict(model_2, newdata = top_50_update %>% filter(YEAR == 2020))
 ```
+
+## The third model: 
+
+Here, we are trying to create a model predicting earnings_next_year depends on earnings_last_year, 2_years_ago, 3_years_ago and 4_years_ago:
+
+```{r}
+# Simulate the prior model
+model_3_prior_with_hiar <- stan_glmer(
+  Earnings_next_year_Scaled ~ EARNINGS_1_YEAR_AGO + EARNINGS_2_YEAR_AGO + EARNINGS_3_YEAR_AGO + EARNINGS_4_YEAR_AGO +  (1 | COMPANY) + Sector, data = data, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = TRUE)
+```
+
+```{r}
+# Check out the prior specifications
+prior_summary(model_3_prior_with_hiar)
+```
+
+```{r}
+model_3 <- update(model_3_prior_with_hiar, prior_PD = FALSE, refresh = 0)
+```
+
+```{r}
+pp_check(model_3)
+```
+
+
 
 
 The final model: using Bayesian forecasting: 
