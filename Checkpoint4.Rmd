@@ -77,6 +77,22 @@ Our data includes financial information on companies in the S&P 500 stock index 
 data <- data %>% 
   mutate(EARNINGS_Scaled = EARNINGS/1000000000,
          CASH_Scaled = CASH/1000000000,
+         SALES_Scaled = SALES/1000000000,
+         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
+         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
+         Earnings_1_years_ago = lead(EARNINGS_Scaled),
+         Earnings_2_years_ago = lead(EARNINGS_Scaled, n =2),
+         Earnings_3_years_ago = lead(EARNINGS_Scaled, n =3),
+         Earnings_4_years_ago = lead(EARNINGS_Scaled, n =4)) %>% 
+  mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
+         SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
+         SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
+         SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
+
+rand_data <- rand_data %>% 
+  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
+         CASH_Scaled = CASH/1000000000,
+         SALES_Scaled = SALES/1000000000,
          MARKET.CAP_Scaled = MARKET.CAP/1000000000,
          Earnings_next_year_Scaled = Earnings_next_year/1000000000,
          Earnings_1_years_ago = lead(EARNINGS_Scaled),
@@ -231,14 +247,18 @@ top_50 <- data %>%
 ```{r}
 top_50_update <- top_50 %>% 
   drop_na()
+
+rand_data_update <- rand_data %>% 
+  drop_na()
 ```
 
 ### The first model: 
 
 ```{r}
+rand_data <- read.csv("RandomCompnay.csv")
 # Simulate the posterior
 model_1 <- stan_glm(
-  Earnings_next_year ~ EARNINGS, data = top_50_update,
+  Earnings_next_year ~ EARNINGS, data = rand_data,
   family = gaussian,
   prior_PD = FALSE,
   chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
@@ -248,11 +268,11 @@ Here, we are trying to predict earnings_next_year using the information of earni
 
 ```{r}
 # Plot 200 posterior plausible model lines
-top_50_update %>%
+rand_data_update %>%
   add_fitted_draws(model_1, n = 200) %>%
   ggplot(aes(x = Earnings_next_year, y = EARNINGS)) +
     geom_line(aes(y = .value, group = .draw), alpha = 0.15) + 
-    geom_point(data = top_50_update)
+    geom_point(data = rand_data)
 ```
 
 ```{r}
@@ -270,7 +290,7 @@ The second model we think will be the hierarchical model with earnings_next_year
 ```{r}
 # Simulate the prior model
 model_2_prior_with_hiar <- stan_glmer(
-  Earnings_next_year ~ EARNINGS +  Sector + (1 | COMPANY), data = top_50_update, 
+  Earnings_next_year ~ EARNINGS + Earnings_1_years_ago + Earnings_2_years_ago + SALES + SALES_1_YEAR_AGO + SALES_2_YEAR_AGO + Sector + (1 | COMPANY), data = rand_data_update, 
   family = gaussian,
   chains = 4, iter = 5000*2, seed = 84735, 
   prior_PD = TRUE)
@@ -288,7 +308,7 @@ pp_check(model_2)
 ```
 
 ```{r}
-top_50_update%>%
+rand_data_update%>%
   add_predicted_draws(model_2_prior_with_hiar, n = 100) %>%
   ggplot(aes(x = Earnings_next_year)) +
     geom_density(aes(x = .prediction, group = .draw)) 
@@ -307,7 +327,7 @@ tidy(model_2, effects = "ran_pars")
 The prediction for the model: 
 
 ```{r}
-pred <- posterior_predict(model_2, newdata = top_50_update %>% filter(YEAR == 2020))
+pred <- posterior_predict(model_2, newdata = rand_data_update %>% filter(YEAR == 2020))
 ```
 
 ### The final model: using Bayesian forecasting
