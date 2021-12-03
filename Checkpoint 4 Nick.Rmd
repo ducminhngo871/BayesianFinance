@@ -30,6 +30,13 @@ library(bayesforecast)    # Bayes Forecasting (Playing around)
 ```{r}
 #Loading Dataset 
 data <- read.csv("FINALDATASET.csv")
+
+companies <- unique(data$COMPANY)
+companies <- as.data.frame(companies)
+df.new <- companies[-sample(1:nrow(companies), 400), ]
+data_2 <- data %>% 
+  filter(COMPANY %in% df.new)
+write.csv(data_2, "RandomCompnay.csv")
 ```
 
 # 1. Introducing your data
@@ -76,7 +83,7 @@ data <- data %>%
          SALES_Scaled = SALES/1000000000)
 
 #Adding Lagged Variables
-s
+
 data <- data %>% 
   group_by(COMPANY) %>%
   mutate(EARNINGS_1_YEAR_AGO = lead(EARNINGS_Scaled, n = 1), 
@@ -157,30 +164,37 @@ data %>%
 
 ```{r}
 data %>% 
-  ggplot(aes(y = EARNINGS_Scaled, x= SALES_Scaled, color = Sector))+
+  ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_Scaled, color = Sector))+
   geom_point(alpha = 0.20)+
   geom_smooth(method = 'lm', formula = y ~ x)+
   theme_minimal()+
   ggtitle("Same Year")
 data %>% 
-  ggplot(aes(y = EARNINGS_Scaled, x= SALES_1_YEAR_AGO, color = Sector))+
+  ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_1_YEAR_AGO, color = Sector))+
   geom_point(alpha = 0.20)+
   geom_smooth(method = 'lm', formula = y ~ x)+
   theme_minimal()+
-  ggtitle("1 year go Year")
+  ggtitle("1 year ago")
 data %>% 
-  ggplot(aes(y = EARNINGS_Scaled, x= SALES_2_YEAR_AGO, color = Sector))+
+  ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_2_YEAR_AGO, color = Sector))+
   geom_point(alpha = 0.20)+
   geom_smooth(method = 'lm', formula = y ~ x)+
   theme_minimal()+
-  ggtitle("2 year go Year")
+  ggtitle("2 year ago")
 data %>% 
-  ggplot(aes(y = EARNINGS_Scaled, x= SALES_3_YEAR_AGO, color = Sector))+
+  ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_3_YEAR_AGO, color = Sector))+
   geom_point(alpha = 0.20)+
   geom_smooth(method = 'lm', formula = y ~ x)+
   theme_minimal()+
-  ggtitle("3 year go Year")
+  ggtitle("3 year ago")
+data %>% 
+  ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_4_YEAR_AGO, color = Sector))+
+  geom_point(alpha = 0.20)+
+  geom_smooth(method = 'lm', formula = y ~ x)+
+  theme_minimal()+
+  ggtitle("4 year ago")
 ```
+For most sectors, it appears that the farther back we go, the flatter the relationship between Earnings and past earnings is. If we plot earnings next year with earnings four years ago, we will see that almost all sectors have different slopes. 
 
 # 4. Model building
 Build and analyze 1–3 Bayesian models which will help inform your research questions. (Build- ing 1 model will be worth full credit, but you’re encouraged to go beyond 1 model if possible.) Keep in mind:
