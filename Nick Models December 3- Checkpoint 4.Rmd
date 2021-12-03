@@ -1,0 +1,320 @@
+---
+title: "Nick-Models"
+author: "NicholasDi"
+date: "12/3/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Setting Up
+```{r}
+library(tidyverse)         # for reading in data, graphing, and cleaning
+library(tidymodels)        # for modeling ... tidily
+library(usemodels)         # for suggesting step_XXX() functions
+library(glmnet)            # for regularized regression, including LASSO
+library(naniar)            # for examining missing values (NAs)
+library(lubridate)         # for date manipulation
+library(moderndive)        # for King County housing data
+library(vip)               # for variable importance plots
+library(rmarkdown)         # for paged tables
+library(dplyr)
+library(janitor)
+library(ggplot2)
+library(dplyr)
+library(bayesforecast)    # Bayes Forecasting (Playing around) 
+library(bayesrules)
+library(tidyverse)
+library(rstanarm)
+library(broom.mixed)
+library(tidybayes)
+library(bayesplot)
+library(ggplot2)
+library(tidymodels)
+library(bayesmodels)
+library(modeltime)
+library(tidyverse)
+library(timetk)
+library(lubridate)
+# This toggles plots from plotly (interactive) to ggplot (static)
+interactive <- FALSE
+```
+
+### Dataset: 
+
+```{r, echo=FALSE}
+#Loading Dataset 
+randomCompany <- read_csv("RandomCompnay.csv")
+```
+
+```{r}
+#Scaling Variables of Interest
+data <- randomCompany %>% 
+  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
+         CASH_Scaled = CASH/1000000000,
+         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
+         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
+         SALES_Scaled = SALES/1000000000)
+
+#Adding Lagged Variables
+data <- data %>% 
+  group_by(COMPANY) %>%
+  mutate(EARNINGS_1_YEAR_AGO = lead(EARNINGS_Scaled, n = 1), 
+         EARNINGS_2_YEAR_AGO = lead(EARNINGS_Scaled, n = 2),
+         EARNINGS_3_YEAR_AGO = lead(EARNINGS_Scaled, n = 3),
+         EARNINGS_4_YEAR_AGO = lead(EARNINGS_Scaled, n = 4)) %>% 
+  mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
+         SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
+         SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
+         SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
+data <- data[,-1] 
+
+         
+```
+
+```{r}
+head(data)
+```
+# Model 1 
+
+This model is a regular simple normal regression, as we are not taking advantage of thei grouped strucuture of our data. We are having a complete pooled regression here. 
+
+```{r}
+model_1 <- stan_glm(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled, data = data,
+  family = gaussian,
+  prior_PD = FALSE,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+```
+
+```{r}
+#Check how our priors were tuned
+prior_summary(model_1)
+mean(data$EARNINGS_Scaled)
+```
+
+## Model Notation 
+
+Where Y is Earnings next year in billions and X is Earnings in the current year in billions. 
+
+Below is our model notation with "specified" priors 
+$$\begin{split}
+Y_i | \beta_0, \beta_1, \sigma & \stackrel{ind}{\sim} N(\mu_i, \sigma^2) \;\; \text{ where } \mu_i = \beta_0 + \beta_1 X_i\\
+\beta_{0c} & \sim N(1.1, 2.5^2) \\
+\beta_1    & \sim N(0, 2.5^2) \\
+\sigma     & \sim \text{Exp}(1) \\
+\end{split}$$
+
+Below is our model notation with adjusted priors
+
+$$\begin{split}
+Y_i | \beta_0, \beta_1, \sigma & \stackrel{ind}{\sim} N(\mu_i, \sigma^2) \;\; \text{ where } \mu_i = \beta_0 + \beta_1 X_i\\
+\beta_{0c} & \sim N(1.1, 6.8^2) \\
+\beta_1    & \sim N(0, 2.5^2) \\
+\sigma     & \sim \text{Exp}(0.37) \\
+\end{split}$$
+
+```{r}
+#Analyzing Coefficients 
+tidy(model_1, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
+```
+```{r}
+pp_check(model_1)
+```
+
+## Model 1 Using Previous Years
+
+```{r}
+model_1_2 <- stan_glm(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO + EARNINGS_2_YEAR_AGO, data = data,
+  family = gaussian,
+  prior_PD = FALSE,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+```
+
+```{r}
+prior_summary(model_1_2)
+```
+
+
+```{r}
+pp_check(model_1_2)
+```
+
+
+
+#Model 2
+
+Similar to the above regression, below we regress earnings next year with a sector dummy variable. 
+
+```{r}
+model_2 <- stan_glm(
+  Earnings_next_year_Scaled ~ Sector, data = data,
+  family = gaussian,
+  prior_PD = FALSE,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+```
+
+```{r}
+#checking to see how priors are tuned
+prior_summary(model_2)
+```
+
+## Model Notation 
+
+Below we regress Earnings Next Year depending on Sector. We have a total of 11 sectors, thus there will be 10 coefficents besides the intercept. Below I plug in our specified prior values.
+
+$$\begin{split}
+Y_i | \beta_0, \beta_1, \sigma & \stackrel{ind}{\sim} N(\mu_i, \sigma^2) \;\; \text{ where } \mu_i = \beta_0 + \beta_1 (Sector2)X_i + \beta_2 (Sector3)X_i...\\
+\beta_{0c} & \sim N(1.1, 2.5^2) \\
+\beta_1    & \sim N(0, 2.5^2) \\
+\beta_2    & \sim N(0, 2.5^2) \\
+\beta_3    & \sim N(0, 2.5^2) \\
+.\\
+.\\
+.\\
+\sigma     & \sim \text{Exp}(1) \\
+\end{split}$$
+
+Here are our Adjusted prior values. 
+
+$$\begin{split}
+Y_i | \beta_0, \beta_1, \sigma & \stackrel{ind}{\sim} N(\mu_i, \sigma^2) \;\; \text{ where } \mu_i = \beta_0 + \beta_1 (Sector2)X_i + \beta_2 (Sector3)X_i...\\
+\beta_{0c} & \sim N(1.1, 6.8^2) \\
+\beta_1    & \sim N(0, 18.77^2) \\
+\beta_2    & \sim N(0, 63.24^2) \\
+\beta_3    & \sim N(0, 30.59^2) \\
+.\\
+.\\
+.\\
+\sigma     & \sim \text{Exp}(0.37) \\
+\end{split}$$
+
+```{r}
+tidy(model_2, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
+```
+```{r}
+pp_check(model_2)
+```
+
+The reference coefficient is "Communication Services" 
+
+#Model 3 - Using Heir Structure
+
+Now we will use a regression where we will utilize the structure of our data. 
+
+```{r}
+model_3_prior_with_hiar <- stan_glmer(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + (1 | COMPANY), data = data, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = TRUE)
+```
+
+```{r}
+prior_summary(model_3_prior_with_hiar)
+```
+
+##Model Notation 
+
+$$\begin{split}
+\text{Relationship within company:} & \\
+Y_{ij} | \beta_{0j}, \beta_1, \sigma_y 
+& \sim N(\mu_{ij}, \sigma_y^2) \;\; \text{ where } \mu_{ij} = \beta_{0j} + \beta_1 X_{ij} \\
+& \\
+\text{Variability between companies:} & \\
+\beta_{0j} & \stackrel{ind}{\sim} N(\beta_0, \sigma_0^2) \\
+& \\
+\text{Prior information on Globals} & \\
+\beta_{0c} & \sim N(m_0, s_0^2) \\
+\beta_1 & \sim N(m_1, s_1^2) \\
+\sigma_y  & \sim \text{Exp}(l_y) \\
+\sigma_0  & \sim \text{Exp}(l_0) \\
+\end{split}$$
+
+```{r}
+tidy(model_3_prior_with_hiar, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
+```
+
+```{r}
+pp_check(model_3_prior_with_hiar)
+```
+
+## Heirc Models Using Previous Years Data
+
+```{r}
+model_3_prior_with_hiar_2 <- stan_glmer(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO + EARNINGS_2_YEAR_AGO + (1 | COMPANY), data = data, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = TRUE)
+```
+
+```{r}
+pp_check(model_3_prior_with_hiar_2)
+```
+
+
+### Bayesian Forecast: 
+
+```{r}
+library(bayesforecast)
+```
+
+```{r}
+ts_model <- function(company) {
+  newdata <- data %>% 
+    filter(COMPANY == company) %>% 
+    select(EARNINGS_Scaled) %>% 
+    arrange(EARNINGS_Scaled)
+  
+  vector <- company$EARNINGS_Scaled
+  
+  myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
+
+  sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
+                  prior_mu0 = student(mu = 0,sd = 1,df = 7))
+  
+}
+
+ts_model(company = "AMZN")
+```
+
+```{r}
+AMZN <- data %>% 
+  filter(COMPANY == 'AMZN') %>% 
+  select(EARNINGS_Scaled) %>% 
+  arrange(EARNINGS_Scaled)
+
+vector <- AMZN$EARNINGS_Scaled
+
+myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
+
+sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
+                  prior_mu0 = student(mu = 0,sd = 1,df = 7))
+```
+
+```{r}
+data %>% 
+  select(EARNINGS)
+```
+
+```{r}
+AMZN <- data %>% 
+  filter(COMPANY == 'AMZN') %>% 
+  select(EARNINGS) 
+  #arrange(EARNINGS_Scaled)
+```
+
+```{r}
+sf1
+```
+
+```{r fig3}
+check_residuals(sf1)
+autoplot(forecast(object = sf1,h = 12))
+```
+
+
