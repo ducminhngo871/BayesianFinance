@@ -38,6 +38,29 @@ library(ggplot2)
 data <- read.csv("FINALDATASET.csv")
 ```
 
+```{r}
+#Scaling Variables of Interest
+data <- data %>% 
+  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
+         CASH_Scaled = CASH/1000000000,
+         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
+         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
+         SALES_Scaled = SALES/1000000000)
+
+#Adding Lagged Variables
+data <- data %>% 
+  group_by(COMPANY) %>%
+  mutate(EARNINGS_1_YEAR_AGO = lead(EARNINGS_Scaled, n = 1), 
+         EARNINGS_2_YEAR_AGO = lead(EARNINGS_Scaled, n = 2),
+         EARNINGS_3_YEAR_AGO = lead(EARNINGS_Scaled, n = 3),
+         EARNINGS_4_YEAR_AGO = lead(EARNINGS_Scaled, n = 4)) %>% 
+  mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
+         SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
+         SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
+         SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
+```
+
+
 # 1. Introducing your data
 
 Our data includes financial information on companies in the S&P 500 stock index from 1999-2021. This information was scraped from Yahoo Finance in November of 2021, and collected in a csv format for data analysis. The information includes metrics like sales, earnings, cogs, stock price, and market sector. The goal is to analyze and model this data to better improve projections for a company’s future metrics, like earnings. The variables in the data set are described below:
@@ -71,12 +94,30 @@ Our data includes financial information on companies in the S&P 500 stock index 
 | Earnings_next_year  | The amount of money in dollars that the company earns in the following year                                 |
 | PROFIT              | The percent change of the stock price over the given year [(SELL - PRICE) / PRICE] * 100                    |
 
+<<<<<<< HEAD
+=======
 # Editing Variables
 
 ```{r}
 data <- data %>% 
   mutate(EARNINGS_Scaled = EARNINGS/1000000000,
          CASH_Scaled = CASH/1000000000,
+         SALES_Scaled = SALES/1000000000,
+         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
+         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
+         Earnings_1_years_ago = lead(EARNINGS_Scaled),
+         Earnings_2_years_ago = lead(EARNINGS_Scaled, n =2),
+         Earnings_3_years_ago = lead(EARNINGS_Scaled, n =3),
+         Earnings_4_years_ago = lead(EARNINGS_Scaled, n =4)) %>% 
+  mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
+         SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
+         SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
+         SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
+
+rand_data <- rand_data %>% 
+  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
+         CASH_Scaled = CASH/1000000000,
+         SALES_Scaled = SALES/1000000000,
          MARKET.CAP_Scaled = MARKET.CAP/1000000000,
          Earnings_next_year_Scaled = Earnings_next_year/1000000000,
          SALES_Scaled = SALES/1000000000,
@@ -89,11 +130,12 @@ data <- data %>%
          SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
          SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
 ```
+>>>>>>> 634a9d9e0816f50aec64e374d6fe8373eee8e2d1
 
 
 # 2. Data summaries
 
-Demonstrate that you have the data imported and ready to go in RStudio. Specifically, to each data set, apply and include the output for the following functions:dim(), names(), head(), summary(). You do not need to write anything.
+Demonstrate that you have the data imported and ready to go in RStudio. Specifically, to each dataset,applyandincludetheoutputforthefollowingfunctions:dim(), names(), head(), summary(). You do not need to write anything.
 
 ```{r}
 dim(data)
@@ -105,11 +147,8 @@ summary(data)
 # 3. Data viz
 
 In your final report, elements such as data visualization will be just as important as the models you build. Construct and discuss a series of 4 data visualizations that inform your research questions. Combined, these viz should:
-
 • tell a story and follow a natural progression, starting with simple univariate plots and ending with multivariate plots;
-
 • help the readers better understand the structure of your data; and
-
 • inform the next step in your analysis: model building.
 
 ```{r}
@@ -206,14 +245,11 @@ For most sectors, it appears that the farther back we go, the flatter the relati
 
 # 4. Model building
 Build and analyze 1–3 Bayesian models which will help inform your research questions. (Build- ing 1 model will be worth full credit, but you’re encouraged to go beyond 1 model if possible.) Keep in mind:
-
 • Scaffolding is important! Model 1 should be the simplest model you can think of. You can build up from there, adding extra parameters/terms/layers as needed. THINK: is Y quantitative? Categorical? What’s a reasonable likelihood structure for our model? Are the data grouped?
-
 • For each model, define notation, specify the model, provide a brief model interpretation (eg: what do the parameters mean).
-
 • For each model, simulate the posterior in R and briefly summarize your conclusions.
 
-Here, we have created three models: one model with the simple regression between Earnings_next_year with Earnings, one hierarchical model with earnings_next_year with earnings and the final model using Bayesian forecasting. 
+Here, we have created three models: one model with the simple regression between Earnings_next_year with Earnings, one hierarchical model with earnings_next_year with earnings and the final model using bayesian forecasting. 
 
 Moreover, due to the fact that it takes a long time to run, we only include top 50 highest market cap company in the list. 
 
@@ -232,14 +268,18 @@ top_50 <- data %>%
 ```{r}
 top_50_update <- top_50 %>% 
   drop_na()
+
+rand_data_update <- rand_data %>% 
+  drop_na()
 ```
 
 ### The first model: 
 
 ```{r}
+rand_data <- read.csv("RandomCompnay.csv")
 # Simulate the posterior
 model_1 <- stan_glm(
-  Earnings_next_year ~ EARNINGS, data = top_50_update,
+  Earnings_next_year ~ EARNINGS, data = rand_data,
   family = gaussian,
   prior_PD = FALSE,
   chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
@@ -249,11 +289,11 @@ Here, we are trying to predict earnings_next_year using the information of earni
 
 ```{r}
 # Plot 200 posterior plausible model lines
-top_50_update %>%
+rand_data_update %>%
   add_fitted_draws(model_1, n = 200) %>%
   ggplot(aes(x = Earnings_next_year, y = EARNINGS)) +
     geom_line(aes(y = .value, group = .draw), alpha = 0.15) + 
-    geom_point(data = top_50_update)
+    geom_point(data = rand_data)
 ```
 
 ```{r}
@@ -264,14 +304,12 @@ tidy(model_1, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
 pp_check(model_1)
 ```
 
-### The Second Model:
-
 The second model we think will be the hierarchical model with earnings_next_year and earnings.
 
 ```{r}
 # Simulate the prior model
 model_2_prior_with_hiar <- stan_glmer(
-  Earnings_next_year ~ EARNINGS +  Sector + (1 | COMPANY), data = top_50_update, 
+  Earnings_next_year ~ EARNINGS + Earnings_1_years_ago + Earnings_2_years_ago + SALES + SALES_1_YEAR_AGO + SALES_2_YEAR_AGO + Sector + (1 | COMPANY), data = rand_data_update, 
   family = gaussian,
   chains = 4, iter = 5000*2, seed = 84735, 
   prior_PD = TRUE)
@@ -289,7 +327,7 @@ pp_check(model_2)
 ```
 
 ```{r}
-top_50_update%>%
+rand_data_update%>%
   add_predicted_draws(model_2_prior_with_hiar, n = 100) %>%
   ggplot(aes(x = Earnings_next_year)) +
     geom_density(aes(x = .prediction, group = .draw)) 
@@ -308,10 +346,11 @@ tidy(model_2, effects = "ran_pars")
 The prediction for the model: 
 
 ```{r}
-pred <- posterior_predict(model_2, newdata = top_50_update %>% filter(YEAR == 2020))
+pred <- posterior_predict(model_2, newdata = rand_data_update %>% filter(YEAR == 2020))
 ```
 
-### The final model: using Bayesian forecasting
+
+The final model: using Bayesian forecasting: 
 
 Here, right now, we can only predict one variable only. We will try to predict for the whole dataset in the future. 
 
@@ -353,7 +392,6 @@ sf1
 check_residuals(sf1)
 autoplot(forecast(object = sf1,h = 12))
 ```
-
 # 5. Next steps
 
 Identify your next steps. What improvements do you plan to make? Are there any ways you plan to enhance your presentation of this analysis (eg: shiny apps, animations, engaging graphics)?
@@ -362,13 +400,10 @@ We plan on continuing to focus on improving our hierarchical model in the coming
 
 
 # 6. Participation
-
-• If your project group is working on a collaborative project, specify what each groupmember (including yourself) contributed to this checkpoint.
+• If your project group is working on a collaborative project, specify what eachg roupmember (including yourself) contributed to this checkpoint.
 
 Duc: Gathering/cleaning data, building hierarchical model, general visualization input
-
 Nick: Created data visualizations, helped w/ model building, general project input
-
 Nolan: Created data visualizations, helped w/ model building, project checkpoint doc.
 
 
