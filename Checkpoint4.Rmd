@@ -79,6 +79,7 @@ data <- data %>%
          CASH_Scaled = CASH/1000000000,
          MARKET.CAP_Scaled = MARKET.CAP/1000000000,
          Earnings_next_year_Scaled = Earnings_next_year/1000000000,
+         SALES_Scaled = SALES/1000000000,
          Earnings_1_years_ago = lead(EARNINGS_Scaled),
          Earnings_2_years_ago = lead(EARNINGS_Scaled, n =2),
          Earnings_3_years_ago = lead(EARNINGS_Scaled, n =3),
