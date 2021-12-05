@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
 ```{r, echo=FALSE}
@@ -34,8 +34,9 @@ library(ggplot2)
 ```
 
 ```{r, echo=FALSE}
-#Loading Dataset 
+#Loading Datasets
 data <- read.csv("FINALDATASET.csv")
+rand_data <- read.csv("RandomCompnay.csv") #random subset of "data"
 ```
 
 First, as the earnings, cash and other variables are really large, we have decided to divide that by 1 billion. The reason for that is to make it easier to interpret and to understand the model. 
@@ -56,6 +57,24 @@ data <- data %>%
          EARNINGS_2_YEAR_AGO = lead(EARNINGS_Scaled, n = 2),
          EARNINGS_3_YEAR_AGO = lead(EARNINGS_Scaled, n = 3),
          EARNINGS_4_YEAR_AGO = lead(EARNINGS_Scaled, n = 4)) %>% 
+  mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
+         SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
+         SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
+         SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
+
+
+#Scaling Variables of Interest & Adding Lagged Variables to random subset of full data
+rand_data <- rand_data %>%
+  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
+         CASH_Scaled = CASH/1000000000,
+         SALES_Scaled = SALES/1000000000,
+         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
+         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
+         SALES_Scaled = SALES/1000000000,
+         Earnings_1_years_ago = lead(EARNINGS_Scaled),
+         Earnings_2_years_ago = lead(EARNINGS_Scaled, n =2),
+         Earnings_3_years_ago = lead(EARNINGS_Scaled, n =3),
+         Earnings_4_years_ago = lead(EARNINGS_Scaled, n =4)) %>%
   mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
          SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
          SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
@@ -100,42 +119,6 @@ Our data includes financial information on companies in the S&P 500 stock index 
 | Earnings_next_year  | The amount of money in dollars that the company earns in the following year                                 |
 | PROFIT              | The percent change of the stock price over the given year [(SELL - PRICE) / PRICE] * 100                   |
 
-=======
-# Editing Variables
-
-```{r}
-data <- data %>% 
-  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
-         CASH_Scaled = CASH/1000000000,
-         SALES_Scaled = SALES/1000000000,
-         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
-         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
-         Earnings_1_years_ago = lead(EARNINGS_Scaled),
-         Earnings_2_years_ago = lead(EARNINGS_Scaled, n =2),
-         Earnings_3_years_ago = lead(EARNINGS_Scaled, n =3),
-         Earnings_4_years_ago = lead(EARNINGS_Scaled, n =4)) %>% 
-  mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
-         SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
-         SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
-         SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
-
-rand_data <- read.csv("RandomCompnay.csv")
-rand_data <- rand_data %>%
-  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
-         CASH_Scaled = CASH/1000000000,
-         SALES_Scaled = SALES/1000000000,
-         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
-         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
-         SALES_Scaled = SALES/1000000000,
-         Earnings_1_years_ago = lead(EARNINGS_Scaled),
-         Earnings_2_years_ago = lead(EARNINGS_Scaled, n =2),
-         Earnings_3_years_ago = lead(EARNINGS_Scaled, n =3),
-         Earnings_4_years_ago = lead(EARNINGS_Scaled, n =4)) %>%
-  mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
-         SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
-         SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
-         SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
-```
 
 # 2. Data summaries
 
