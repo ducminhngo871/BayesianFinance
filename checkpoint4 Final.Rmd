@@ -42,6 +42,10 @@ rand_data <- read.csv("RandomCompnay.csv") #random subset of "data"
 First, as the earnings, cash and other variables are really large, we have decided to divide that by 1 billion. The reason for that is to make it easier to interpret and to understand the model. 
 
 ```{r}
+#Selecting necessary variables
+data <- select(data, c("YEAR", "COMPANY", "MARKET.CAP", "EARNINGS", "SALES", "CASH", "Name", "Sector", "Earnings_next_year"))
+rand_data <- select(data, c("YEAR", "COMPANY", "MARKET.CAP", "EARNINGS", "SALES", "CASH", "Name", "Sector", "Earnings_next_year"))
+
 #Scaling Variables of Interest
 data <- data %>% 
   mutate(EARNINGS_Scaled = EARNINGS/1000000000,
@@ -96,28 +100,13 @@ Our data includes financial information on companies in the S&P 500 stock index 
 |---------------------|-------------------------------------------------------------------------------------------------------------|
 | YEAR                | The financial year of the company                                                                           |
 | COMPANY             | The company’s stock abbreviation symbol                                                                     |
-| PRICE               | The stock price of the company on the last day of March of that year                                        |
-| SELL                | The stock price of the company after one year (on the first day of March)                                   |
-| VOLUME              | The total number of shares the company has at that moment                                                   |
 | MARKET.CAP          | The total market capitalization of the company (Volume * Price)                                             |
 | EARNINGS            | The earnings in dollars for the previous year for the given company                                         |
-| COGS                | The Cost of Goods Sold in dollars for the previous year for the given company                               |
 | SALES               | How much the company sold in dollars last year                                                              |
 | CASH                | How much cash the company has in dollars at the end of the previous year                                    |
-| INVESTMENTS         | How much investments the company has in dollars at the end of the previous year                             |
-| RECEIVABLE          | How much short term receivable the company has in dollars at the end of the previous year                   |
-| INVENTORY           | How much inventory the company has in dollars at the end of the previous year                               |
-| DEBTS               | How much money the company owes in dollars at the end of the previous year (short-term debt)                |
 | Name                | The full name of the company                                                                                |
 | Sector              | The name of the sector that the company is a part of                                                        |
-| CPALTT01USM657N_PC1 | Consumer Price Index: Total All Items for the United States, Percent Change from Year Ago, Annual           |
-| GDP                 | Gross Domestic Product, Billions of Dollars, Annual                                                         |
-| GDP_PC1             | Gross Domestic Product, Percent Change from Year Ago                                                        |
-| T10Y2Y              | 10-Year Treasury Constant Maturity Minus 2-Year Treasury Constant Maturity, Annual, Not Seasonally Adjusted |
-| M1SL                | M1, Percent Change from Year Ago, Annual, Seasonally Adjusted                                               |
-| M1SL_PC1            | M1, Billions of Dollars, Annual, Seasonally Adjusted                                                        |
 | Earnings_next_year  | The amount of money in dollars that the company earns in the following year                                 |
-| PROFIT              | The percent change of the stock price over the given year [(SELL - PRICE) / PRICE] * 100                   |
 
 
 # 2. Data summaries
@@ -158,13 +147,8 @@ sumUSA <- data %>%
   group_by(YEAR) %>% 
   summarise(sumMarket_cap = sum(`MARKET.CAP`), 
             sumEarnings = sum(EARNINGS), 
-            sumCOGS = sum(COGS), 
             sumSALES = sum(SALES), 
-            sumCASH = sum(CASH), 
-            sumInvestments = sum(INVESTMENTS), 
-            sumReceivable = sum(RECEIVABLE), 
-            sumInventory = sum(INVENTORY), 
-            sumDebts = sum(DEBTS)) 
+            sumCASH = sum(CASH)) 
 
 sumUSA %>% 
   ggplot(aes(x = YEAR, y = sumMarket_cap)) + geom_line() + theme_minimal() + labs(x = "Year") +
