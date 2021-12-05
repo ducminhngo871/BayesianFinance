@@ -119,21 +119,22 @@ data <- data %>%
          SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
          SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
 
-# rand_data <- rand_data %>% 
-#   mutate(EARNINGS_Scaled = EARNINGS/1000000000,
-#          CASH_Scaled = CASH/1000000000,
-#          SALES_Scaled = SALES/1000000000,
-#          MARKET.CAP_Scaled = MARKET.CAP/1000000000,
-#          Earnings_next_year_Scaled = Earnings_next_year/1000000000,
-#          SALES_Scaled = SALES/1000000000,
-#          Earnings_1_years_ago = lead(EARNINGS_Scaled),
-#          Earnings_2_years_ago = lead(EARNINGS_Scaled, n =2),
-#          Earnings_3_years_ago = lead(EARNINGS_Scaled, n =3),
-#          Earnings_4_years_ago = lead(EARNINGS_Scaled, n =4)) %>% 
-#   mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
-#          SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
-#          SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
-#          SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
+rand_data <- read.csv("RandomCompnay.csv")
+rand_data <- rand_data %>%
+  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
+         CASH_Scaled = CASH/1000000000,
+         SALES_Scaled = SALES/1000000000,
+         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
+         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
+         SALES_Scaled = SALES/1000000000,
+         Earnings_1_years_ago = lead(EARNINGS_Scaled),
+         Earnings_2_years_ago = lead(EARNINGS_Scaled, n =2),
+         Earnings_3_years_ago = lead(EARNINGS_Scaled, n =3),
+         Earnings_4_years_ago = lead(EARNINGS_Scaled, n =4)) %>%
+  mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
+         SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
+         SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
+         SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
 ```
 
 # 2. Data summaries
@@ -397,7 +398,7 @@ model_3_prior_with_hiar <- stan_glmer(
   Earnings_next_year_Scaled ~ EARNINGS_Scaled + (1 | COMPANY), data = data, 
   family = gaussian,
   chains = 4, iter = 5000*2, seed = 84735, 
-  prior_PD = TRUE)
+  prior_PD = FALSE)
 ```
 
 ```{r}
@@ -414,12 +415,18 @@ Y_{ij} | \beta_{0j}, \beta_1, \sigma_y
 \text{Variability between companies:} & \\
 \beta_{0j} & \stackrel{ind}{\sim} N(\beta_0, \sigma_0^2) \\
 & \\
-\text{Prior information on Globals} & \\
-\beta_{0c} & \sim N(m_0, s_0^2) \\
-\beta_1 & \sim N(m_1, s_1^2) \\
-\sigma_y  & \sim \text{Exp}(l_y) \\
-\sigma_0  & \sim \text{Exp}(l_0) \\
+\text{Prior information on Globals with Specified Prior} & \\
+\beta_{0c} & \sim N(1.5, 2.5^2) \\
+\beta_1 & \sim N(0, 2.5^2) \\
+\sigma_y  & \sim \text{Exp}(1) \\
+\sigma_0  & \sim \text{Exp}(1) \\
+\text{Prior information on Globals with Adjusted Prior} & \\
+\beta_{0c} & \sim N(1.5, 9.8^2) \\
+\beta_1 & \sim N(0, 2.6^2) \\
+\sigma_y  & \sim \text{Exp}(0.25) \\
+\sigma_0  & \sim \text{Exp}(1) \\
 \end{split}$$
+
 
 ```{r}
 tidy(model_3_prior_with_hiar, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
@@ -440,8 +447,14 @@ model_3_prior_with_hiar_2 <- stan_glmer(
 ```
 
 ```{r}
+tidy(model_3_prior_with_hiar_2)
+```
+
+
+```{r}
 pp_check(model_3_prior_with_hiar_2)
 ```
+
 
 ### Really complex hiar model: 
 
