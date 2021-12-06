@@ -438,7 +438,7 @@ write_rds(model_3_with_hiar_2, "model_3_with_hiar_2.rds")
 
 ```{r}
 tidy(model_3_with_hiar_2)
-prior_summary(model_3_prior_with_hiar_2)
+prior_summary(model_3_with_hiar_2)
 ```
 
 ## Model Notation 
@@ -576,10 +576,10 @@ We plan on continuing to focus on improving our hierarchical model in the coming
 
 
 # 6. Participation
-• If your project group is working on a collaborative project, specify what each groupmember (including yourself) contributed to this checkpoint.
+• If your project group is working on a collaborative project, specify what each group member (including yourself) contributed to this checkpoint.
 
-Duc: Gathering/cleaning data, building hierarchical model, general visualization input
-Nick: Created data visualizations, helped w/ model building, general project input
-Nolan: Created data visualizations, helped w/ model building, project checkpoint doc.
+Duc: Worked on improving models, cleaning dataset, worked on timeseries forecast 
+Nick: Edited Viz, Worked on model notations, worked on theory behind ARIMA/SARIMA,
+Nolan: Interpreted Viz, interpreted models, worked on notations.
 
 
