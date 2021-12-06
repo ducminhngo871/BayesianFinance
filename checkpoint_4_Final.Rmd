@@ -373,20 +373,20 @@ Compared to the
 Now we will use a regression where we will utilize the structure of our data. 
 
 ```{r}
-model_3_with_hiar <- stan_glmer(
+model_3_hiar <- stan_glmer(
   Earnings_next_year_Scaled ~ EARNINGS_Scaled + (1 | COMPANY), data = data, 
   family = gaussian,
   chains = 4, iter = 5000*2, seed = 84735, 
-  prior_PD = TRUE)
+  prior_PD = FALSE)
 ```
 
 ```{r}
-write_rds(model_3_with_hiar, "model_3_with_hiar.rds")
+write_rds(model_3_hiar, "model_3_with_hiar.rds")
 ```
 
 
 ```{r}
-prior_summary(model_3_with_hiar)
+prior_summary(model_3_hiar)
 ```
 
 ## Model Notation 
@@ -413,11 +413,11 @@ Y_{ij} | \beta_{0j}, \beta_1, \sigma_y
 
 
 ```{r}
-tidy(model_3_with_hiar, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
+tidy(model_3_hiar, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
 ```
 
 ```{r}
-pp_check(model_3_with_hiar)
+pp_check(model_3_hiar)
 ```
 
 Overall, the model performs pretty well. It matches bettter with the predicted y value. 
@@ -466,11 +466,6 @@ Y_{ij} | \beta_{0j}, \beta_1, \beta_2, \beta_3, \sigma_y
 \sigma_y  & \sim \text{Exp}(0.24) \\
 \sigma_0  & \sim \text{Exp}(1) \\
 \end{split}$$
-
-```{r}
-tidy(model_3_prior_with_hiar_2)
-```
-
 
 ```{r}
 pp_check(model_3_with_hiar_2)
