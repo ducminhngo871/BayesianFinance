@@ -432,13 +432,11 @@ model_3_with_hiar_2 <- stan_glmer(
 ```
 
 ```{r}
-<<<<<<< HEAD
 write_rds(model_3_with_hiar_2, "model_3_with_hiar_2.rds")
 ```
 
 ```{r}
 tidy(model_3_with_hiar_2)
-=======
 prior_summary(model_3_prior_with_hiar_2)
 ```
 
@@ -470,7 +468,6 @@ Y_{ij} | \beta_{0j}, \beta_1, \beta_2, \beta_3, \sigma_y
 
 ```{r}
 tidy(model_3_prior_with_hiar_2)
->>>>>>> 04f7d821a7a2f4285c4a57fd9b7f12099a6058c2
 ```
 
 
@@ -578,7 +575,7 @@ We plan on continuing to focus on improving our hierarchical model in the coming
 
 
 # 6. Participation
-• If your project group is working on a collaborative project, specify what eachg roupmember (including yourself) contributed to this checkpoint.
+• If your project group is working on a collaborative project, specify what each groupmember (including yourself) contributed to this checkpoint.
 
 Duc: Gathering/cleaning data, building hierarchical model, general visualization input
 Nick: Created data visualizations, helped w/ model building, general project input
