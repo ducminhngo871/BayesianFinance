@@ -1,0 +1,585 @@
+---
+title: "Checkpoint 4 FINAL"
+author: "Nicholas Di, Duc Ngo, Nolan Meyer"
+date: "11/30/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r, echo=FALSE}
+library(tidyverse)         # for reading in data, graphing, and cleaning
+library(tidymodels)        # for modeling ... tidily
+library(usemodels)         # for suggesting step_XXX() functions
+library(glmnet)            # for regularized regression, including LASSO
+library(naniar)            # for examining missing values (NAs)
+library(lubridate)         # for date manipulation
+library(moderndive)        # for King County housing data
+library(vip)               # for variable importance plots
+library(rmarkdown)         # for paged tables
+library(dplyr)
+library(janitor)
+library(ggplot2)
+library(dplyr)
+library(bayesforecast)    # Bayes Forecasting (Playing around) 
+library(bayesrules)
+library(tidyverse)
+library(rstanarm)
+library(broom.mixed)
+library(tidybayes)
+library(bayesplot)
+library(ggplot2)
+```
+
+```{r, echo=FALSE}
+#Loading Datasets
+data <- read.csv("FINALDATASET.csv")
+rand_data <- read.csv("RandomCompnay.csv") #random subset of "data"
+```
+
+First, as the earnings, cash and other variables are really large, we have decided to divide that by 1 billion. The reason for that is to make it easier to interpret and to understand the model. 
+
+```{r}
+#Selecting necessary variables
+data <- dplyr::select(data, c("YEAR", "COMPANY", "MARKET.CAP", "EARNINGS", "SALES", "CASH", "Name", "Sector", "Earnings_next_year"))
+
+rand_data <- dplyr::select(data, c("YEAR", "COMPANY", "MARKET.CAP", "EARNINGS", "SALES", "CASH", "Name", "Sector", "Earnings_next_year"))
+
+#Scaling Variables of Interest
+data <- data %>% 
+  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
+         CASH_Scaled = CASH/1000000000,
+         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
+         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
+         SALES_Scaled = SALES/1000000000)
+
+#Adding Lagged Variables
+data <- data %>% 
+  group_by(COMPANY) %>%
+  mutate(EARNINGS_1_YEAR_AGO = lead(EARNINGS_Scaled, n = 1), 
+         EARNINGS_2_YEAR_AGO = lead(EARNINGS_Scaled, n = 2),
+         EARNINGS_3_YEAR_AGO = lead(EARNINGS_Scaled, n = 3),
+         EARNINGS_4_YEAR_AGO = lead(EARNINGS_Scaled, n = 4)) %>% 
+  mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
+         SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
+         SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
+         SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
+
+
+#Scaling Variables of Interest & Adding Lagged Variables to random subset of full data
+rand_data <- rand_data %>%
+  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
+         CASH_Scaled = CASH/1000000000,
+         SALES_Scaled = SALES/1000000000,
+         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
+         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
+         SALES_Scaled = SALES/1000000000,
+         Earnings_1_years_ago = lead(EARNINGS_Scaled),
+         Earnings_2_years_ago = lead(EARNINGS_Scaled, n =2),
+         Earnings_3_years_ago = lead(EARNINGS_Scaled, n =3),
+         Earnings_4_years_ago = lead(EARNINGS_Scaled, n =4)) %>%
+  mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
+         SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
+         SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
+         SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
+```
+
+
+```{r}
+head(data)
+```
+
+# 1. Introducing your data
+
+Our data includes financial information on companies in the S&P 500 stock index from 1999-2021. This information was scraped from Yahoo Finance in November of 2021, and collected in a csv format for data analysis. The information includes metrics like sales, earnings, cogs, stock price, and market sector. The goal is to analyze and model this data to better improve projections for a company’s future metrics, like earnings. The variables in the data set are described below:
+
+
+
+| Variable            | Meaning                                                                                                     |
+|---------------------|-------------------------------------------------------------------------------------------------------------|
+| YEAR                | The financial year of the company                                                                           |
+| COMPANY             | The company’s stock abbreviation symbol                                                                     |
+| MARKET.CAP          | The total market capitalization of the company (Volume * Price)                                             |
+| EARNINGS            | The earnings in dollars for the previous year for the given company                                         |
+| SALES               | How much the company sold in dollars last year                                                              |
+| CASH                | How much cash the company has in dollars at the end of the previous year                                    |
+| Name                | The full name of the company                                                                                |
+| Sector              | The name of the sector that the company is a part of                                                        |
+| Earnings_next_year  | The amount of money in dollars that the company earns in the following year                               
+
+
+# 2. Data summaries
+
+Demonstrate that you have the data imported and ready to go in RStudio. Specifically, to each dataset,apply and include the output for the following functions:dim(), names(), head(), summary(). You do not need to write anything.
+
+```{r}
+dim(data)
+names(data)
+head(data)
+summary(data)
+```
+
+# 3. Data viz
+
+In your final report, elements such as data visualization will be just as important as the models you build. Construct and discuss a series of 4 data visualizations that inform your research questions. Combined, these viz should:
+• tell a story and follow a natural progression, starting with simple univariate plots and ending with multivariate plots;
+• help the readers better understand the structure of your data; and
+• inform the next step in your analysis: model building.
+
+After collecting the data, we then looks for the distribution of the companies within the S&P 500. The first plot we are going to create is the number of companies within the period: 
+
+```{r}
+#First Viz
+tabyl(data$YEAR) %>% 
+  ggplot(aes(x= `data$YEAR`, y = n)) +
+  geom_line()+
+  xlab("")+
+  ylab("") + 
+  labs(title = "Number of Companies Within the Period") + 
+  theme_minimal()
+```
+
+As we see above, we have data for about 70% of the companies in the S&P 500 for the first year of our data, and by 2021 we have about every single company within the index. It is important for us to have data on as many companies as possible over this time period so that we can better capture trends and make more accurate models based on the data. 
+
+
+```{r}
+#Second Viz 
+sumUSA <- data %>% 
+  group_by(YEAR) %>% 
+  summarise(sumMarket_cap = sum(`MARKET.CAP`), 
+            sumEarnings = sum(EARNINGS), 
+            sumSALES = sum(SALES), 
+            sumCASH = sum(CASH)) 
+
+sumUSA %>% 
+  ggplot(aes(x = YEAR, y = sumMarket_cap)) + geom_line() + theme_minimal() + labs(x = "Year") +
+  ggtitle("Market Cap within Dataset")
+```
+
+Next, we investigated how market cap, specifically the sum of all the companies' market caps, varied from year to year. By grouping by year, we were able to easily combine each companies market cap together to create the plot above. This plot highlights trends in the overall market, we see a general increase over time in market cap, with sharp decreases around 2008 and 2020. Those two years align with the housing market crash and COVID respectively, both which led to decreases in the stock market. By identifying trends in the overall market, we may have a better idea about how individual companies may perform.
+
+```{r}
+#Third Viz
+temp <- data %>% 
+  group_by(COMPANY) %>% 
+  summarize(count = n(), 
+            mean_MC = mean(MARKET.CAP)) %>% 
+  filter(count == 23) %>% 
+  arrange(desc(mean_MC)) %>% 
+  head(50)
+temp <- temp$COMPANY
+data_2 <- data %>%  
+  filter(COMPANY %in% temp) 
+data_2 %>% 
+  ggplot(aes(y = EARNINGS, x= SALES, color = Sector))+
+  geom_point(alpha = 0.20)+
+  geom_smooth(method = 'lm', formula = y ~ x)+
+  theme_minimal()+
+  ggtitle("Sales and Earnings Relationship by Sector \n Among top 50 Companies by Market Cap")
+```
+
+Our main objective with this project is to be able to accurately predict future earnings using metrics like sales, previous earnings, and other variables like the sector of the company. We found that overall, among the top 50 companies (based on market cap), there were positive relationships between earning and sales. This relationship varies based on the market sector, with IT having the most positive relationship, and Consumer Staples having the least positive relationship. This indicates to us that both sector and sales may be important predictors of earnings that we should explore using in our future models.
+
+```{r}
+#Fourth Viz
+data %>% 
+  ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_Scaled, color = Sector))+
+  geom_point(alpha = 0.20)+
+  geom_smooth(method = 'lm', formula = y ~ x)+
+  theme_minimal()+
+  ggtitle("Same Year")
+data %>% 
+  ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_1_YEAR_AGO, color = Sector))+
+  geom_point(alpha = 0.20)+
+  geom_smooth(method = 'lm', formula = y ~ x)+
+  theme_minimal()+
+  ggtitle("1 year ago")
+data %>% 
+  ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_2_YEAR_AGO, color = Sector))+
+  geom_point(alpha = 0.20)+
+  geom_smooth(method = 'lm', formula = y ~ x)+
+  theme_minimal()+
+  ggtitle("2 year ago")
+data %>% 
+  ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_3_YEAR_AGO, color = Sector))+
+  geom_point(alpha = 0.20)+
+  geom_smooth(method = 'lm', formula = y ~ x)+
+  theme_minimal()+
+  ggtitle("3 year ago")
+data %>% 
+  ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_4_YEAR_AGO, color = Sector))+
+  geom_point(alpha = 0.20)+
+  geom_smooth(method = 'lm', formula = y ~ x)+
+  theme_minimal()+
+  ggtitle("4 year ago")
+```
+
+For most sectors, it appears that the farther back we go, the flatter the relationship between Earnings and past earnings is. If we plot earnings next year with earnings four years ago, we will see that almost all sectors have different slopes. 
+
+# 4. Model building
+Build and analyze 1–3 Bayesian models which will help inform your research questions. (Build- ing 1 model will be worth full credit, but you’re encouraged to go beyond 1 model if possible.) Keep in mind:
+• Scaffolding is important! Model 1 should be the simplest model you can think of. You can build up from there, adding extra parameters/terms/layers as needed. THINK: is Y quantitative? Categorical? What’s a reasonable likelihood structure for our model? Are the data grouped?
+• For each model, define notation, specify the model, provide a brief model interpretation (eg: what do the parameters mean).
+• For each model, simulate the posterior in R and briefly summarize your conclusions.
+
+Here, we are creating the models based on the level of complexitiy as well as the number of variables we feel that can impact the earnings and the way to predict it. The first model we are going to create is a simple normal regression model: 
+
+# Model 1 
+
+This model is a regular simple normal regression, as we are not taking advantage of the grouped structure of our data. We are having a complete pooled regression here. 
+
+```{r}
+model_1 <- stan_glm(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled, data = data,
+  family = gaussian,
+  prior_PD = FALSE,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+```
+
+```{r}
+#Check how our priors were tuned
+prior_summary(model_1)
+```
+
+## Model Notation 
+
+Where Y is Earnings next year in billions and X is Earnings in the current year in billions. 
+
+Below is our model notation with "specified" priors 
+$$\begin{split}
+Y_i | \beta_0, \beta_1, \sigma & \stackrel{ind}{\sim} N(\mu_i, \sigma^2) \;\; \text{ where } \mu_i = \beta_0 + \beta_1 X_i\\
+\beta_{0c} & \sim N(1.1, 2.5^2) \\
+\beta_1    & \sim N(0, 2.5^2) \\
+\sigma     & \sim \text{Exp}(1) \\
+\end{split}$$
+
+Below is our model notation with adjusted priors
+
+$$\begin{split}
+Y_i | \beta_0, \beta_1, \sigma & \stackrel{ind}{\sim} N(\mu_i, \sigma^2) \;\; \text{ where } \mu_i = \beta_0 + \beta_1 X_i\\
+\beta_{0c} & \sim N(1.1, 6.8^2) \\
+\beta_1    & \sim N(0, 2.5^2) \\
+\sigma     & \sim \text{Exp}(0.37) \\
+\end{split}$$
+
+```{r}
+#Analyzing Coefficients 
+tidy(model_1, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
+```
+
+Here, we can see that one company where they have one more billion increased in this year'earnings, the prediction for next year increase by 0.29 billion. 
+
+After seeing the model, we then move on to see how accurate the model when we compare it to the actual value: 
+
+```{r}
+pp_check(model_1)
+```
+
+As we can see that, the actual y-value and the predicted value fall among the mean of 0, however, the height for the actual y-value is much larger than the predicted one. 
+
+After creating a simple linear regression model, we move on to try a sligtly more complex model, with the appearance of this year's earnings, earnings' one and two years ago: 
+
+## Model 1 Using Previous Years
+
+```{r}
+model_1_2 <- stan_glm(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO + EARNINGS_2_YEAR_AGO, data = data,
+  family = gaussian,
+  prior_PD = FALSE,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+```
+
+```{r}
+prior_summary(model_1_2)
+```
+
+
+```{r}
+pp_check(model_1_2)
+```
+
+Compared to the first model, we can see in this one, the model performs better. The predicted y value has a much better height compared to the others. 
+
+# Model 2
+
+Similar to the above regression, below we regress earnings next year with a sector dummy variable. 
+
+```{r}
+model_2 <- stan_glm(
+  Earnings_next_year_Scaled ~ Sector -1 , data = data,
+  family = gaussian,
+  prior_PD = FALSE,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+```
+
+```{r}
+#checking to see how priors are tuned
+prior_summary(model_2)
+```
+
+## Model Notation 
+
+Below we regress Earnings Next Year depending on Sector. We have a total of 11 sectors, thus there will be 10 coefficents besides the intercept. Below I plug in our specified prior values.
+
+$$\begin{split}
+Y_i | \beta_0, \beta_1, \sigma & \stackrel{ind}{\sim} N(\mu_i, \sigma^2) \;\; \text{ where } \mu_i = \beta_0 + \beta_1 (Sector2)X_i + \beta_2 (Sector3)X_i...\\
+\beta_{0c} & \sim N(1.1, 2.5^2) \\
+\beta_1    & \sim N(0, 2.5^2) \\
+\beta_2    & \sim N(0, 2.5^2) \\
+\beta_3    & \sim N(0, 2.5^2) \\
+.\\
+.\\
+.\\
+\sigma     & \sim \text{Exp}(1) \\
+\end{split}$$
+
+Here are our Adjusted prior values. 
+
+$$\begin{split}
+Y_i | \beta_0, \beta_1, \sigma & \stackrel{ind}{\sim} N(\mu_i, \sigma^2) \;\; \text{ where } \mu_i = \beta_0 + \beta_1 (Sector2)X_i + \beta_2 (Sector3)X_i...\\
+\beta_{0c} & \sim N(1.1, 6.8^2) \\
+\beta_1    & \sim N(0, 18.77^2) \\
+\beta_2    & \sim N(0, 63.24^2) \\
+\beta_3    & \sim N(0, 30.59^2) \\
+.\\
+.\\
+.\\
+\sigma     & \sim \text{Exp}(0.37) \\
+\end{split}$$
+
+
+```{r}
+tidy(model_2, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
+```
+
+Here, we can see that the communication services sectors have the highest earnings_next_year estimates with 3.2 billions, followed by energy, Consumer Staples and Financials. 
+
+```{r}
+pp_check(model_2)
+```
+
+When we look at the graph, the predicted and the actual value for the earnings did not fully match. Therefore, we move on to the higher level graph: using hierarchical model: 
+
+<<<<<<< HEAD
+#Model 3 - Using hierarchical Structure
+=======
+Compared to the 
+
+# Model 3 - Using Heir Structure
+>>>>>>> 04f7d821a7a2f4285c4a57fd9b7f12099a6058c2
+
+Now we will use a regression where we will utilize the structure of our data. 
+
+```{r}
+model_3_with_hiar <- stan_glmer(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + (1 | COMPANY), data = data, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = TRUE)
+```
+
+```{r}
+write_rds(model_3_with_hiar, "model_3_with_hiar.rds")
+```
+
+
+```{r}
+prior_summary(model_3_with_hiar)
+```
+
+## Model Notation 
+
+$$\begin{split}
+\text{Relationship within company:} & \\
+Y_{ij} | \beta_{0j}, \beta_1, \sigma_y 
+& \sim N(\mu_{ij}, \sigma_y^2) \;\; \text{ where } \mu_{ij} = \beta_{0j} + \beta_1 X_{ij} \\
+& \\
+\text{Variability between companies:} & \\
+\beta_{0j} & \stackrel{ind}{\sim} N(\beta_0, \sigma_0^2) \\
+& \\
+\text{Prior information on Globals with Specified Prior} & \\
+\beta_{0c} & \sim N(1.5, 2.5^2) \\
+\beta_1 & \sim N(0, 2.5^2) \\
+\sigma_y  & \sim \text{Exp}(1) \\
+\sigma_0  & \sim \text{Exp}(1) \\
+\text{Prior information on Globals with Adjusted Prior} & \\
+\beta_{0c} & \sim N(1.5, 9.8^2) \\
+\beta_1 & \sim N(0, 2.6^2) \\
+\sigma_y  & \sim \text{Exp}(0.25) \\
+\sigma_0  & \sim \text{Exp}(1) \\
+\end{split}$$
+
+
+```{r}
+tidy(model_3_with_hiar, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
+```
+
+```{r}
+pp_check(model_3_with_hiar)
+```
+
+Overall, the model performs pretty well. It matches bettter with the predicted y value. 
+
+## Heirc Models Using Previous Years Data
+
+```{r}
+model_3_with_hiar_2 <- stan_glmer(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO + EARNINGS_2_YEAR_AGO + (1 | COMPANY), data = data, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = FALSE)
+```
+
+```{r}
+write_rds(model_3_with_hiar_2, "model_3_with_hiar_2.rds")
+```
+
+```{r}
+tidy(model_3_with_hiar_2)
+prior_summary(model_3_prior_with_hiar_2)
+```
+
+## Model Notation 
+
+$$\begin{split}
+\text{Relationship within company:} & \\
+Y_{ij} | \beta_{0j}, \beta_1, \beta_2, \beta_3, \sigma_y 
+& \sim N(\mu_{ij}, \sigma_y^2) \;\; \text{ where } \mu_{ij} = \beta_{0j} + \beta_1 X_{ij} + \beta_2 X_{ij} + \beta_3 X_{ij} \\
+& \\
+\text{Variability between companies:} & \\
+\beta_{0j} & \stackrel{ind}{\sim} N(\beta_0, \sigma_0^2) \\
+& \\
+\text{Prior information on Globals with Specified Prior} & \\
+\beta_{0c} & \sim N(1.6, 2.5^2) \\
+\beta_1 & \sim N(0, 2.5^2) \\
+\beta_2 & \sim N(0, 2.5^2) \\
+\beta_3 & \sim N(0, 2.5^2) \\
+\sigma_y  & \sim \text{Exp}(1) \\
+\sigma_0  & \sim \text{Exp}(1) \\
+\text{Prior information on Globals with Adjusted Prior} & \\
+\beta_{0c} & \sim N(1.6, 10^2) \\
+\beta_1 & \sim N(0, 2.63^2) \\
+\beta_2 & \sim N(0, 2.76^2) \\
+\beta_3 & \sim N(0, 2.90^2) \\
+\sigma_y  & \sim \text{Exp}(0.24) \\
+\sigma_0  & \sim \text{Exp}(1) \\
+\end{split}$$
+
+```{r}
+tidy(model_3_prior_with_hiar_2)
+```
+
+
+```{r}
+pp_check(model_3_with_hiar_2)
+```
+
+Certainly, when adding the previous earnings, the model looks much better. It fits with the actual y-value. 
+
+After two models, we then move on to the most complex model, which involves with earnings for the previous years, along with the sector: 
+
+```{r}
+# Simulate the prior model
+model_complex_prior_with_hiar <- stan_glmer(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO + EARNINGS_2_YEAR_AGO + EARNINGS_3_YEAR_AGO + EARNINGS_4_YEAR_AGO +  (1 | COMPANY) + Sector, data = data, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = TRUE)
+```
+
+```{r}
+write_rds(model_complex_prior_with_hiar, "model_complex_prior_with_hiar.rds")
+```
+
+We then try to update the model: 
+
+```{r}
+model_complex <- update(model_complex_prior_with_hiar, prior_PD = FALSE, refresh = 0)
+```
+
+```{r}
+write_rds(model_complex, "model_complex.rds")
+```
+
+```{r}
+pp_check(model_complex)
+```
+
+Looking in this model, it also perform extremely wells. The predicted y value matches with the actual y-value.
+
+```{r}
+tidy(model_complex, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
+```
+
+We can see in here, the earnings this year has a strong impact on predicting next year's earnings compared to the rest.
+
+After seeing the strength and the weaknesses of each model, we then move on to the bayesian forecast:
+
+### Bayesian Forecast SARIMA: 
+
+In our last model specification, we decided to use the bayesforcas package. In particular we are fitting a SARIMA model in Stan.
+
+SARIMA stands for seasonal autoregressive integrated moving average. This is an extension of ARIMA and is therefore more robust as it is able to support seasonal data. 
+
+ARIMA is a method that combines both auto-regressive methods and moving averages- it is widely used on time series data in attempts to predict future values. There are four components that explain time series data, trend, seasonality, irregularity, and cyclic components. 
+
+Here are the parameters for an ARIMA model: 
+
+P - order of the AR term. This is the number of Y to be used as predictors. For example, if we are predicting 2021 earnings, how many previous years earnings are we going to use? 
+Q- Order of the MA term. This is the number of lagged forecast errors. How many past forecast errors will we be using? 
+D- the minimum differencing period. A stationary time series implies one that has properties that do not depend on the time at which the series is observed. 
+
+As mentioned above, SARIMA is able to support seasonal data. Below are the parameters for a SARIMA model that ARIMA does not have. 
+P-  Seasonal autoregressive order. A P=1 would make use of the first seasonally offset observation in the model, e.g. t-(m1) or t-12. A P=2, would use the last two seasonally offset observations t-(m1), t-(m2).
+D- Seasonal difference order. A D of 1 would calculate a first order seasonal difference and a Q=1 would use a first order error in the model (e.g. moving average).
+Q Seasonal moving average order.
+M- The number of time steps for a single seasonal period. M is a very important parameter as it influences the P, D, and Q parameters. For example, an m of 5 for yearly data suggests a 5-year seasonal cycle (in the context of business cycles. 
+
+
+```{r}
+library(bayesforecast)
+```
+
+```{r}
+AMZN <- data %>% 
+  filter(COMPANY == 'AMZN') %>% 
+  dplyr::select(EARNINGS_Scaled) %>% 
+  arrange(EARNINGS_Scaled)
+
+vector <- AMZN$EARNINGS_Scaled
+
+myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
+
+sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
+                  prior_mu0 = student(mu = 0,sd = 1,df = 7))
+```
+
+```{r}
+sf1
+```
+
+```{r fig3}
+check_residuals(sf1)
+autoplot(forecast(object = sf1,h = 12))
+```
+
+We can see in here, the bayesian forecast predict that Amazon earnings will continue to increase in the future. Additionally, the residuals value stay near 0 in this case for Amazon as well.
+
+
+# 5. Next steps
+
+Identify your next steps. What improvements do you plan to make? Are there any ways you plan to enhance your presentation of this analysis (eg: shiny apps, animations, engaging graphics)?
+
+We plan on continuing to focus on improving our hierarchical model in the coming phases. We hope to improve it so it better models the data and has better predictive accuracy. We are still thinking about how we will go about presenting our project and in what medium we will do it in. We are leaning towards more of a blog post type of work as this may be better suited for a broader audience that could be interested in our project.
+
+
+# 6. Participation
+• If your project group is working on a collaborative project, specify what each groupmember (including yourself) contributed to this checkpoint.
+
+Duc: Gathering/cleaning data, building hierarchical model, general visualization input
+Nick: Created data visualizations, helped w/ model building, general project input
+Nolan: Created data visualizations, helped w/ model building, project checkpoint doc.
+
+
