@@ -298,7 +298,7 @@ pp_check(model_1_2)
 
 Compared to the first model, we can see in this one, the model performs better. The predicted y value has a much better height compared to the others. 
 
-#Model 2
+# Model 2
 
 Similar to the above regression, below we regress earnings next year with a sector dummy variable. 
 
@@ -356,7 +356,7 @@ The reference coefficient is "Communication Services"
 
 Compared to the 
 
-#Model 3 - Using Heir Structure
+# Model 3 - Using Heir Structure
 
 Now we will use a regression where we will utilize the structure of our data. 
 
@@ -365,14 +365,14 @@ model_3_prior_with_hiar <- stan_glmer(
   Earnings_next_year_Scaled ~ EARNINGS_Scaled + (1 | COMPANY), data = data, 
   family = gaussian,
   chains = 4, iter = 5000*2, seed = 84735, 
-  prior_PD = FALSE)
+  prior_PD = TRUE)
 ```
 
 ```{r}
 prior_summary(model_3_prior_with_hiar)
 ```
 
-##Model Notation 
+## Model Notation 
 
 $$\begin{split}
 \text{Relationship within company:} & \\
@@ -412,6 +412,36 @@ model_3_prior_with_hiar_2 <- stan_glmer(
   chains = 4, iter = 5000*2, seed = 84735, 
   prior_PD = TRUE)
 ```
+
+```{r}
+prior_summary(model_3_prior_with_hiar_2)
+```
+
+## Model Notation 
+
+$$\begin{split}
+\text{Relationship within company:} & \\
+Y_{ij} | \beta_{0j}, \beta_1, \beta_2, \beta_3, \sigma_y 
+& \sim N(\mu_{ij}, \sigma_y^2) \;\; \text{ where } \mu_{ij} = \beta_{0j} + \beta_1 X_{ij} + \beta_2 X_{ij} + \beta_3 X_{ij} \\
+& \\
+\text{Variability between companies:} & \\
+\beta_{0j} & \stackrel{ind}{\sim} N(\beta_0, \sigma_0^2) \\
+& \\
+\text{Prior information on Globals with Specified Prior} & \\
+\beta_{0c} & \sim N(1.6, 2.5^2) \\
+\beta_1 & \sim N(0, 2.5^2) \\
+\beta_2 & \sim N(0, 2.5^2) \\
+\beta_3 & \sim N(0, 2.5^2) \\
+\sigma_y  & \sim \text{Exp}(1) \\
+\sigma_0  & \sim \text{Exp}(1) \\
+\text{Prior information on Globals with Adjusted Prior} & \\
+\beta_{0c} & \sim N(1.6, 10^2) \\
+\beta_1 & \sim N(0, 2.63^2) \\
+\beta_2 & \sim N(0, 2.76^2) \\
+\beta_3 & \sim N(0, 2.90^2) \\
+\sigma_y  & \sim \text{Exp}(0.24) \\
+\sigma_0  & \sim \text{Exp}(1) \\
+\end{split}$$
 
 ```{r}
 tidy(model_3_prior_with_hiar_2)
