@@ -43,8 +43,9 @@ First, as the earnings, cash and other variables are really large, we have decid
 
 ```{r}
 #Selecting necessary variables
-data <- select(data, c("YEAR", "COMPANY", "MARKET.CAP", "EARNINGS", "SALES", "CASH", "Name", "Sector", "Earnings_next_year"))
-rand_data <- select(data, c("YEAR", "COMPANY", "MARKET.CAP", "EARNINGS", "SALES", "CASH", "Name", "Sector", "Earnings_next_year"))
+data <- dplyr::select(data, c("YEAR", "COMPANY", "MARKET.CAP", "EARNINGS", "SALES", "CASH", "Name", "Sector", "Earnings_next_year"))
+
+rand_data <- dplyr::select(data, c("YEAR", "COMPANY", "MARKET.CAP", "EARNINGS", "SALES", "CASH", "Name", "Sector", "Earnings_next_year"))
 
 #Scaling Variables of Interest
 data <- data %>% 
@@ -106,7 +107,7 @@ Our data includes financial information on companies in the S&P 500 stock index 
 | CASH                | How much cash the company has in dollars at the end of the previous year                                    |
 | Name                | The full name of the company                                                                                |
 | Sector              | The name of the sector that the company is a part of                                                        |
-| Earnings_next_year  | The amount of money in dollars that the company earns in the following year                                 |
+| Earnings_next_year  | The amount of money in dollars that the company earns in the following year                               
 
 
 # 2. Data summaries
@@ -127,6 +128,8 @@ In your final report, elements such as data visualization will be just as import
 • help the readers better understand the structure of your data; and
 • inform the next step in your analysis: model building.
 
+After collecting the data, we then looks for the distribution of the companies within the S&P 500. The first plot we are going to create is the number of companies within the period: 
+
 ```{r}
 #First Viz
 tabyl(data$YEAR) %>% 
@@ -138,7 +141,7 @@ tabyl(data$YEAR) %>%
   theme_minimal()
 ```
 
-For starters, we wanted to get a sense of how many companies of the 500 in the S&P stock index we had data on each year. As we see above, we have data for about 70% of the companies in the S&P 500 for the first year of our data, and by 2021 we have about every single company within the index. It is important for us to have data on as many companies as possible over this time period so that we can better capture trends and make more accurate models based on the data. 
+As we see above, we have data for about 70% of the companies in the S&P 500 for the first year of our data, and by 2021 we have about every single company within the index. It is important for us to have data on as many companies as possible over this time period so that we can better capture trends and make more accurate models based on the data. 
 
 
 ```{r}
@@ -221,11 +224,11 @@ Build and analyze 1–3 Bayesian models which will help inform your research que
 • For each model, define notation, specify the model, provide a brief model interpretation (eg: what do the parameters mean).
 • For each model, simulate the posterior in R and briefly summarize your conclusions.
 
-Here, we have created three models: one model with the simple regression between Earnings_next_year with Earnings, one hierarchical model with earnings_next_year with earnings and the final model using bayesian forecasting. 
+Here, we are creating the models based on the level of complexitiy as well as the number of variables we feel that can impact the earnings and the way to predict it. The first model we are going to create is a simple normal regression model: 
 
 # Model 1 
 
-This model is a regular simple normal regression, as we are not taking advantage of thei grouped strucuture of our data. We are having a complete pooled regression here. 
+This model is a regular simple normal regression, as we are not taking advantage of the grouped structure of our data. We are having a complete pooled regression here. 
 
 ```{r}
 model_1 <- stan_glm(
@@ -238,7 +241,6 @@ model_1 <- stan_glm(
 ```{r}
 #Check how our priors were tuned
 prior_summary(model_1)
-mean(data$EARNINGS_Scaled)
 ```
 
 ## Model Notation 
@@ -277,6 +279,8 @@ pp_check(model_1)
 
 As we can see that, the actual y-value and the predicted value fall among the mean of 0, however, the height for the actual y-value is much larger than the predicted one. 
 
+After creating a simple linear regression model, we move on to try a sligtly more complex model, with the appearance of this year's earnings, earnings' one and two years ago: 
+
 ## Model 1 Using Previous Years
 
 ```{r}
@@ -304,7 +308,7 @@ Similar to the above regression, below we regress earnings next year with a sect
 
 ```{r}
 model_2 <- stan_glm(
-  Earnings_next_year_Scaled ~ Sector, data = data,
+  Earnings_next_year_Scaled ~ Sector -1 , data = data,
   family = gaussian,
   prior_PD = FALSE,
   chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
@@ -345,23 +349,30 @@ Y_i | \beta_0, \beta_1, \sigma & \stackrel{ind}{\sim} N(\mu_i, \sigma^2) \;\; \t
 \sigma     & \sim \text{Exp}(0.37) \\
 \end{split}$$
 
+
 ```{r}
 tidy(model_2, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
 ```
+Here, we can see that the communication services sectors have the highest earnings_next_year estimates with 3.2 billions, followed by energy, Consumer Staples and Financials. 
+
 ```{r}
 pp_check(model_2)
 ```
 
-The reference coefficient is "Communication Services" 
+When we look at the graph, the predicted and the actual value for the earnings did not fully match. Therefore, we move on to the higher level graph: using hierarchical model: 
 
+<<<<<<< HEAD
+#Model 3 - Using hierarchical Structure
+=======
 Compared to the 
 
 # Model 3 - Using Heir Structure
+>>>>>>> 04f7d821a7a2f4285c4a57fd9b7f12099a6058c2
 
 Now we will use a regression where we will utilize the structure of our data. 
 
 ```{r}
-model_3_prior_with_hiar <- stan_glmer(
+model_3_with_hiar <- stan_glmer(
   Earnings_next_year_Scaled ~ EARNINGS_Scaled + (1 | COMPANY), data = data, 
   family = gaussian,
   chains = 4, iter = 5000*2, seed = 84735, 
@@ -369,7 +380,12 @@ model_3_prior_with_hiar <- stan_glmer(
 ```
 
 ```{r}
-prior_summary(model_3_prior_with_hiar)
+write_rds(model_3_with_hiar, "model_3_with_hiar.rds")
+```
+
+
+```{r}
+prior_summary(model_3_with_hiar)
 ```
 
 ## Model Notation 
@@ -396,24 +412,33 @@ Y_{ij} | \beta_{0j}, \beta_1, \sigma_y
 
 
 ```{r}
-tidy(model_3_prior_with_hiar, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
+tidy(model_3_with_hiar, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
 ```
 
 ```{r}
-pp_check(model_3_prior_with_hiar)
+pp_check(model_3_with_hiar)
 ```
+
+Overall, the model performs pretty well. It matches bettter with the predicted y value. 
 
 ## Heirc Models Using Previous Years Data
 
 ```{r}
-model_3_prior_with_hiar_2 <- stan_glmer(
+model_3_with_hiar_2 <- stan_glmer(
   Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO + EARNINGS_2_YEAR_AGO + (1 | COMPANY), data = data, 
   family = gaussian,
   chains = 4, iter = 5000*2, seed = 84735, 
-  prior_PD = TRUE)
+  prior_PD = FALSE)
 ```
 
 ```{r}
+<<<<<<< HEAD
+write_rds(model_3_with_hiar_2, "model_3_with_hiar_2.rds")
+```
+
+```{r}
+tidy(model_3_with_hiar_2)
+=======
 prior_summary(model_3_prior_with_hiar_2)
 ```
 
@@ -445,23 +470,29 @@ Y_{ij} | \beta_{0j}, \beta_1, \beta_2, \beta_3, \sigma_y
 
 ```{r}
 tidy(model_3_prior_with_hiar_2)
+>>>>>>> 04f7d821a7a2f4285c4a57fd9b7f12099a6058c2
 ```
 
 
 ```{r}
-pp_check(model_3_prior_with_hiar_2)
+pp_check(model_3_with_hiar_2)
 ```
 
+Certainly, when adding the previous earnings, the model looks much better. It fits with the actual y-value. 
 
-### Really complex hiar model: 
+After two models, we then move on to the most complex model, which involves with earnings for the previous years, along with the sector: 
 
 ```{r}
 # Simulate the prior model
 model_complex_prior_with_hiar <- stan_glmer(
-  Earnings_next_year_Scaled ~ EARNINGS_1_YEAR_AGO + EARNINGS_2_YEAR_AGO + EARNINGS_3_YEAR_AGO + EARNINGS_4_YEAR_AGO +  (1 | COMPANY) + Sector, data = data, 
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO + EARNINGS_2_YEAR_AGO + EARNINGS_3_YEAR_AGO + EARNINGS_4_YEAR_AGO +  (1 | COMPANY) + Sector, data = data, 
   family = gaussian,
   chains = 4, iter = 5000*2, seed = 84735, 
   prior_PD = TRUE)
+```
+
+```{r}
+write_rds(model_complex_prior_with_hiar, "model_complex_prior_with_hiar.rds")
 ```
 
 We then try to update the model: 
@@ -471,12 +502,22 @@ model_complex <- update(model_complex_prior_with_hiar, prior_PD = FALSE, refresh
 ```
 
 ```{r}
+write_rds(model_complex, "model_complex.rds")
+```
+
+```{r}
 pp_check(model_complex)
 ```
+
+Looking in this model, it also perform extremely wells. The predicted y value matches with the actual y-value.
 
 ```{r}
 tidy(model_complex, effects = "fixed", conf.int = TRUE, conf.level = 0.80)
 ```
+
+We can see in here, the earnings this year has a strong impact on predicting next year's earnings compared to the rest.
+
+After seeing the strength and the weaknesses of each model, we then move on to the bayesian forecast:
 
 ### Bayesian Forecast: 
 
@@ -485,32 +526,12 @@ library(bayesforecast)
 ```
 
 ```{r}
-ts_model <- function(company) {
-  newdata <- data %>% 
-    filter(COMPANY == company) %>% 
-    select(EARNINGS_Scaled) %>% 
-    arrange(EARNINGS_Scaled)
-  
-  vector <- company$EARNINGS_Scaled
-  
-  myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
-
-  sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
-                  prior_mu0 = student(mu = 0,sd = 1,df = 7))
-  
-}
-
-ts_model(company = "AMZN")
-```
-
-
-```{r}
 AMZN <- data %>% 
   filter(COMPANY == 'AMZN') %>% 
-  select(EARNINGS) %>% 
-  arrange(EARNINGS)
+  dplyr::select(EARNINGS_Scaled) %>% 
+  arrange(EARNINGS_Scaled)
 
-vector <- AMZN$EARNINGS
+vector <- AMZN$EARNINGS_Scaled
 
 myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
 
@@ -526,6 +547,9 @@ sf1
 check_residuals(sf1)
 autoplot(forecast(object = sf1,h = 12))
 ```
+
+We can see in here, the bayesian forecast predict that Amazon earnings will continue to increase in the future. Additionally, the residuals value stay near 0 in this case for Amazon as well.
+
 
 # 5. Next steps
 
