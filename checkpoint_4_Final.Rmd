@@ -357,13 +357,8 @@ pp_check(model_2)
 
 When we look at the graph, the predicted and the actual value for the earnings did not fully match. Therefore, we move on to the higher level graph: using hierarchical model: 
 
-<<<<<<< HEAD
-#Model 3 - Using hierarchical Structure
-=======
-Compared to the 
 
-# Model 3 - Using Heir Structure
->>>>>>> 04f7d821a7a2f4285c4a57fd9b7f12099a6058c2
+# Model 3 - Using hierarchical Structure
 
 Now we will use a regression where we will utilize the structure of our data. 
 
@@ -563,13 +558,4 @@ We can see in here, the bayesian forecast predict that Amazon earnings will cont
 Identify your next steps. What improvements do you plan to make? Are there any ways you plan to enhance your presentation of this analysis (eg: shiny apps, animations, engaging graphics)?
 
 We plan on continuing to focus on improving our hierarchical model in the coming phases. We hope to improve it so it better models the data and has better predictive accuracy. We are still thinking about how we will go about presenting our project and in what medium we will do it in. We are leaning towards more of a blog post type of work as this may be better suited for a broader audience that could be interested in our project.
-
-
-# 6. Participation
-• If your project group is working on a collaborative project, specify what each group member (including yourself) contributed to this checkpoint.
-
-Duc: Worked on improving models, cleaning dataset, worked on timeseries forecast 
-Nick: Edited Viz, Worked on model notations, worked on theory behind ARIMA/SARIMA,
-Nolan: Interpreted Viz, interpreted models, worked on notations.
-
 
