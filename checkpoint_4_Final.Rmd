@@ -108,7 +108,7 @@ Our data includes financial information on companies in the S&P 500 stock index 
 | CASH                | How much cash the company has in dollars at the end of the previous year                                    |
 | Name                | The full name of the company                                                                                |
 | Sector              | The name of the sector that the company is a part of                                                        |
-| Earnings_next_year  | The amount of money in dollars that the company earns in the following year                               
+| Earnings_next_year  | The amount of money in dollars that the company earns in the following year                                 |               
 
 
 # 3. Data viz
