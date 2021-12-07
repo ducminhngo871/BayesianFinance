@@ -22,6 +22,7 @@ library(rmarkdown)         # for paged tables
 library(dplyr)
 library(janitor)
 library(ggplot2)
+library(ggpubr)
 library(dplyr)
 library(bayesforecast)    # Bayes Forecasting (Playing around) 
 library(bayesrules)
@@ -110,35 +111,21 @@ Our data includes financial information on companies in the S&P 500 stock index 
 | Earnings_next_year  | The amount of money in dollars that the company earns in the following year                               
 
 
-# 2. Data summaries
-
-Demonstrate that you have the data imported and ready to go in RStudio. Specifically, to each dataset,apply and include the output for the following functions:dim(), names(), head(), summary(). You do not need to write anything.
-
-```{r}
-dim(data)
-names(data)
-head(data)
-summary(data)
-```
-
 # 3. Data viz
 
-In your final report, elements such as data visualization will be just as important as the models you build. Construct and discuss a series of 4 data visualizations that inform your research questions. Combined, these viz should:
-• tell a story and follow a natural progression, starting with simple univariate plots and ending with multivariate plots;
-• help the readers better understand the structure of your data; and
-• inform the next step in your analysis: model building.
-
-After collecting the data, we then looks for the distribution of the companies within the S&P 500. The first plot we are going to create is the number of companies within the period: 
+After collecting the data, we then looked for the distribution of the companies within the S&P 500. The first plot we are going to create is the number of companies within the period: 
 
 ```{r}
 #First Viz
-tabyl(data$YEAR) %>% 
+plot1 <- tabyl(data$YEAR) %>% 
   ggplot(aes(x= `data$YEAR`, y = n)) +
   geom_line()+
   xlab("")+
   ylab("") + 
   labs(title = "Number of Companies Within the Period") + 
   theme_minimal()
+
+plot1
 ```
 
 As we see above, we have data for about 70% of the companies in the S&P 500 for the first year of our data, and by 2021 we have about every single company within the index. It is important for us to have data on as many companies as possible over this time period so that we can better capture trends and make more accurate models based on the data. 
@@ -153,9 +140,11 @@ sumUSA <- data %>%
             sumSALES = sum(SALES), 
             sumCASH = sum(CASH)) 
 
-sumUSA %>% 
+plot2 <- sumUSA %>% 
   ggplot(aes(x = YEAR, y = sumMarket_cap)) + geom_line() + theme_minimal() + labs(x = "Year") +
   ggtitle("Market Cap within Dataset")
+
+plot2
 ```
 
 Next, we investigated how market cap, specifically the sum of all the companies' market caps, varied from year to year. By grouping by year, we were able to easily combine each companies market cap together to create the plot above. This plot highlights trends in the overall market, we see a general increase over time in market cap, with sharp decreases around 2008 and 2020. Those two years align with the housing market crash and COVID respectively, both which led to decreases in the stock market. By identifying trends in the overall market, we may have a better idea about how individual companies may perform.
@@ -172,48 +161,54 @@ temp <- data %>%
 temp <- temp$COMPANY
 data_2 <- data %>%  
   filter(COMPANY %in% temp) 
-data_2 %>% 
+plot3 <- data_2 %>% 
   ggplot(aes(y = EARNINGS, x= SALES, color = Sector))+
   geom_point(alpha = 0.20)+
   geom_smooth(method = 'lm', formula = y ~ x)+
   theme_minimal()+
   ggtitle("Sales and Earnings Relationship by Sector \n Among top 50 Companies by Market Cap")
+
+plot3
 ```
 
 Our main objective with this project is to be able to accurately predict future earnings using metrics like sales, previous earnings, and other variables like the sector of the company. We found that overall, among the top 50 companies (based on market cap), there were positive relationships between earning and sales. This relationship varies based on the market sector, with IT having the most positive relationship, and Consumer Staples having the least positive relationship. This indicates to us that both sector and sales may be important predictors of earnings that we should explore using in our future models.
 
-```{r}
+```{r, fig.width=6, fig.height=4}
 #Fourth Viz
-data %>% 
+p1 <- data %>% 
   ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_Scaled, color = Sector))+
   geom_point(alpha = 0.20)+
   geom_smooth(method = 'lm', formula = y ~ x)+
   theme_minimal()+
   ggtitle("Same Year")
-data %>% 
+p2 <- data %>% 
   ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_1_YEAR_AGO, color = Sector))+
   geom_point(alpha = 0.20)+
   geom_smooth(method = 'lm', formula = y ~ x)+
   theme_minimal()+
   ggtitle("1 year ago")
-data %>% 
+p3 <- data %>% 
   ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_2_YEAR_AGO, color = Sector))+
   geom_point(alpha = 0.20)+
   geom_smooth(method = 'lm', formula = y ~ x)+
   theme_minimal()+
   ggtitle("2 year ago")
-data %>% 
+p4 <- data %>% 
   ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_3_YEAR_AGO, color = Sector))+
   geom_point(alpha = 0.20)+
   geom_smooth(method = 'lm', formula = y ~ x)+
   theme_minimal()+
   ggtitle("3 year ago")
-data %>% 
+p5 <- data %>% 
   ggplot(aes(y = Earnings_next_year_Scaled, x= EARNINGS_4_YEAR_AGO, color = Sector))+
   geom_point(alpha = 0.20)+
-  geom_smooth(method = 'lm', formula = y ~ x)+
+  geom_smooth(method = 'lm', formula = y ~ x)+ 
   theme_minimal()+
   ggtitle("4 year ago")
+
+ggarrange(p1, p2, p3, p4, p5,
+         ncol = 3, nrow = 2,
+         common.legend = TRUE, legend = "bottom")
 ```
 
 For most sectors, it appears that the farther back we go, the flatter the relationship between Earnings and past earnings is. If we plot earnings next year with earnings four years ago, we will see that almost all sectors have different slopes. 
