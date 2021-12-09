@@ -1,0 +1,179 @@
+---
+title: "Bayesian Forecast"
+output: html_notebook
+---
+
+```{r, echo=FALSE}
+library(tidyverse)         # for reading in data, graphing, and cleaning
+library(tidymodels)        # for modeling ... tidily
+library(usemodels)         # for suggesting step_XXX() functions
+library(glmnet)            # for regularized regression, including LASSO
+library(naniar)            # for examining missing values (NAs)
+library(lubridate)         # for date manipulation
+library(moderndive)        # for King County housing data
+library(vip)               # for variable importance plots
+library(rmarkdown)         # for paged tables
+library(dplyr)
+library(janitor)
+library(ggplot2)
+library(ggpubr)
+library(dplyr)
+library(bayesforecast)    # Bayes Forecasting (Playing around) 
+library(bayesrules)
+library(tidyverse)
+library(rstanarm)
+library(broom.mixed)
+library(tidybayes)
+library(bayesplot)
+library(ggplot2)
+```
+
+```{r, echo=FALSE}
+#Loading Datasets
+data <- read.csv("FINALDATASET.csv")
+rand_data <- read.csv("RandomCompnay.csv") #random subset of "data"
+```
+
+```{r}
+#Selecting necessary variables
+data <- dplyr::select(data, c("YEAR", "COMPANY", "MARKET.CAP", "EARNINGS", "SALES", "CASH", "Name", "Sector", "Earnings_next_year"))
+
+rand_data <- dplyr::select(data, c("YEAR", "COMPANY", "MARKET.CAP", "EARNINGS", "SALES", "CASH", "Name", "Sector", "Earnings_next_year"))
+
+#Scaling Variables of Interest
+data <- data %>% 
+  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
+         CASH_Scaled = CASH/1000000000,
+         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
+         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
+         SALES_Scaled = SALES/1000000000)
+
+#Adding Lagged Variables
+data <- data %>% 
+  group_by(COMPANY) %>%
+  mutate(EARNINGS_1_YEAR_AGO = lead(EARNINGS_Scaled, n = 1), 
+         EARNINGS_2_YEAR_AGO = lead(EARNINGS_Scaled, n = 2),
+         EARNINGS_3_YEAR_AGO = lead(EARNINGS_Scaled, n = 3),
+         EARNINGS_4_YEAR_AGO = lead(EARNINGS_Scaled, n = 4)) %>% 
+  mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
+         SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
+         SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
+         SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
+
+
+#Scaling Variables of Interest & Adding Lagged Variables to random subset of full data
+rand_data <- rand_data %>%
+  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
+         CASH_Scaled = CASH/1000000000,
+         SALES_Scaled = SALES/1000000000,
+         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
+         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
+         SALES_Scaled = SALES/1000000000,
+         Earnings_1_years_ago = lead(EARNINGS_Scaled),
+         Earnings_2_years_ago = lead(EARNINGS_Scaled, n =2),
+         Earnings_3_years_ago = lead(EARNINGS_Scaled, n =3),
+         Earnings_4_years_ago = lead(EARNINGS_Scaled, n =4)) %>%
+  mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
+         SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
+         SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
+         SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
+```
+
+
+### Bayesian Forecast SARIMA: 
+
+In our last model specification, we decided to use the bayesforcas package. In particular we are fitting a SARIMA model in Stan.
+
+SARIMA stands for seasonal autoregressive integrated moving average. This is an extension of ARIMA and is therefore more robust as it is able to support seasonal data. 
+
+ARIMA is a method that combines both auto-regressive methods and moving averages- it is widely used on time series data in attempts to predict future values. There are four components that explain time series data, trend, seasonality, irregularity, and cyclic components. 
+
+Here are the parameters for an ARIMA model: 
+
+P - order of the AR term. This is the number of Y to be used as predictors. For example, if we are predicting 2021 earnings, how many previous years earnings are we going to use? 
+Q- Order of the MA term. This is the number of lagged forecast errors. How many past forecast errors will we be using? 
+D- the minimum differencing period. A stationary time series implies one that has properties that do not depend on the time at which the series is observed. 
+
+As mentioned above, SARIMA is able to support seasonal data. Below are the parameters for a SARIMA model that ARIMA does not have. 
+P-  Seasonal autoregressive order. A P=1 would make use of the first seasonally offset observation in the model, e.g. t-(m1) or t-12. A P=2, would use the last two seasonally offset observations t-(m1), t-(m2).
+D- Seasonal difference order. A D of 1 would calculate a first order seasonal difference and a Q=1 would use a first order error in the model (e.g. moving average).
+Q Seasonal moving average order.
+M- The number of time steps for a single seasonal period. M is a very important parameter as it influences the P, D, and Q parameters. For example, an m of 5 for yearly data suggests a 5-year seasonal cycle (in the context of business cycles. 
+
+```{r}
+library(bayesforecast)
+```
+
+After running the model, we then move on to predict the earnings of the future year for the companies. The companies we are going to predict will be Amazon (symbol: "AMZN"), American Airlines (symbol: "AAL"), and Ford (symbol: "F"). 
+
+
+```{r}
+AMZN <- data %>% 
+  filter(COMPANY == 'AMZN') %>% 
+  dplyr::select(EARNINGS_Scaled) %>% 
+  arrange(EARNINGS_Scaled)
+
+vector <- AMZN$EARNINGS_Scaled
+
+myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
+
+sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
+                  prior_mu0 = student(mu = 0,sd = 1,df = 7))
+```
+
+```{r}
+sf1
+```
+
+```{r fig3}
+check_residuals(sf1)
+autoplot(forecast(object = sf1,h = 12))
+```
+
+First, for Amazon, we could see that the earnings are predicted to increase from 2021 to 2030, moving from 21 billions to around 38 billions in 2030. 
+
+For the residuals plot, we can see that the residuals expect to increase in the future and keep increasing as the farther from 2020, the data becomes more and more unpredictable. Overall, the residuals lie around -1 and 0, which suggests that the error is not that far off from the actual value. 
+
+We then move on to the other companies: Microsoft and American Airlines:
+
+```{r}
+AAL <- data %>% 
+  filter(COMPANY == 'AAL') %>% 
+  dplyr::select(EARNINGS_Scaled) %>% 
+  arrange(EARNINGS_Scaled)
+
+vector <- AAL$EARNINGS_Scaled
+
+myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
+
+sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
+                  prior_mu0 = student(mu = 0,sd = 1,df = 7))
+```
+
+```{r}
+check_residuals(sf1)
+autoplot(forecast(object = sf1,h = 12))
+```
+
+For American Airlines, we see a different story. As we can see from the graph, as airlines industry is an extremely cyclical field, the earnings fluctuate a lot. We could see that they fluctuate a lot during the previous years. With that in mind, the model predicts that American Airlines will not improve the much during the following years from 2021 to 2030. 
+
+```{r}
+F <- data %>% 
+  filter(COMPANY == 'F') %>% 
+  dplyr::select(EARNINGS_Scaled) %>% 
+  arrange(EARNINGS_Scaled)
+
+vector <- F$EARNINGS_Scaled
+
+myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
+
+sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
+                  prior_mu0 = student(mu = 0,sd = 1,df = 7))
+```
+
+```{r}
+check_residuals(sf1)
+autoplot(forecast(object = sf1,h = 12))
+```
+
+For Ford, it follows the same case as American Airlines. Even though the earnings increase, the model predicts that Ford's earning will stay relatively the same throughout the year from 2021 to 2030. For the residuals part, the residuals fluctuate around -1 to 1, with some exceptions of 6 and 11 in around 2002 and 2020 (the year when COVID-19 started). 
