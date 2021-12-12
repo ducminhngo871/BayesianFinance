@@ -232,6 +232,8 @@ This is much better as the data points are closer in proximity.
 
 Since we have time-series data, we create a testing set by subseting each company's 2nd to latest year. We will predict earnings's next year with the testing set and compare it with the actual values.
 
+Here, we create the testing dataset by taking the last year for every single company in the list. The last year will be the testing data, while the training data consists of every company excluding last year. 
+
 ```{r}
 testing <- data_elimatedO %>% 
    group_by(COMPANY) %>% 
