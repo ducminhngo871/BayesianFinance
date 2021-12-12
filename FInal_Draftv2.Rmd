@@ -1,0 +1,727 @@
+---
+title: "Final Draft V2"
+author: "Nicholas Di, Duc Ngo, Nolan Meyer"
+date: "11/30/2021"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+#Set up
+
+```{r}
+#Custome Functions
+predict_model<- function(Company, Model){
+  test_comp <- Company
+  test_1 <- testing %>% 
+    filter(COMPANY == test_comp)
+  predict_next_year <- posterior_predict(
+  Model, 
+  newdata = data.frame(test_1))
+  most_recent_year <- testing %>% 
+   filter(COMPANY == test_comp) %>% 
+   filter(row_number()==1)
+most_recent_year <- most_recent_year$YEAR
+actual <- data %>% 
+  filter(COMPANY == test_comp & YEAR == most_recent_year-1) %>% 
+  select(c("EARNINGS_Scaled","YEAR"))
+actual <- actual$EARNINGS_Scaled
+randomsample <- sample_n(as.data.frame(predict_next_year), 750)
+graphing_predictions <- randomsample %>% 
+  mutate(EARNINGS_Scaled = `1`,
+         YEAR = most_recent_year) %>% 
+  add_row(EARNINGS_Scaled = actual, YEAR = most_recent_year -1) %>% 
+  select(c("EARNINGS_Scaled","YEAR"))
+g <- data %>% 
+  filter(COMPANY == test_comp) %>% 
+  filter(YEAR <= most_recent_year) %>% 
+  ggplot(aes(x= YEAR, y=EARNINGS_Scaled))+
+  geom_point() +
+  geom_line() +
+  geom_segment(data = graphing_predictions, aes(x = most_recent_year - 1, 
+                   xend = most_recent_year,
+                   y = actual, 
+                   yend = EARNINGS_Scaled),
+               alpha = 0.03,
+               colour = "red")
+  return(g)
+}
+
+collect_metrics_pred <- function(Model, Datametric){
+  predictions_mode_2 <- posterior_predict(
+  Model, 
+  newdata = data.frame(Datametric))
+prediction_dataframe <- as.data.frame(predictions_mode_2)
+
+temp <- prediction_dataframe %>% 
+bind_rows(summarise(.,across(where(is.numeric),median),
+                    across(where(is.character),~"Median")))
+meadian_predictions <- tail(temp, 1)
+meadian_predictions <- t(meadian_predictions)
+meadian_predictions<-as.data.frame(meadian_predictions)
+meadian_predictions <- meadian_predictions %>% 
+  mutate(median = `20001`) %>% 
+  select(median)
+
+temp <- prediction_dataframe %>% 
+bind_rows(summarise(.,across(where(is.numeric),quantile, .025),
+                    across(where(is.character),~"Lower95")))
+predictions_lower <- tail(temp, 1)
+predictions_lower <- t(predictions_lower)
+predictions_lower<-as.data.frame(predictions_lower)
+predictions_lower95 <- predictions_lower %>% 
+  mutate(lower95 = `20001`) %>% 
+  select(lower95)
+
+temp <- prediction_dataframe %>% 
+bind_rows(summarise(.,across(where(is.numeric),quantile, .25),
+                    across(where(is.character),~"Lower50")))
+predictions_lower <- tail(temp, 1)
+predictions_lower <- t(predictions_lower)
+predictions_lower<-as.data.frame(predictions_lower)
+predictions_lower50 <- predictions_lower %>% 
+  mutate(lower50 = `20001`) %>% 
+  select(lower50)
+
+temp <- prediction_dataframe %>% 
+bind_rows(summarise(.,across(where(is.numeric),quantile, .975),
+                    across(where(is.character),~"Upper95")))
+predictions_upper <- tail(temp, 1)
+predictions_upper <- t(predictions_upper)
+predictions_upper<-as.data.frame(predictions_upper)
+predictions_upper95 <- predictions_upper %>% 
+  mutate(upper95 = `20001`) %>% 
+  select(upper95)
+
+temp <- prediction_dataframe %>% 
+bind_rows(summarise(.,across(where(is.numeric),quantile, .75),
+                    across(where(is.character),~"Upper50")))
+predictions_upper <- tail(temp, 1)
+predictions_upper <- t(predictions_upper)
+predictions_upper<-as.data.frame(predictions_upper)
+predictions_upper50 <- predictions_upper %>% 
+  mutate(upper50 = `20001`) %>% 
+  select(upper50)
+
+Testing_with_metrics <- cbind(Datametric, predictions_upper95, predictions_lower95,predictions_upper50,predictions_lower50, meadian_predictions)
+
+median_error <- Testing_with_metrics %>% 
+  mutate(absDist = abs(median - Earnings_next_year_Scaled))
+
+in_95 <- Testing_with_metrics %>% 
+  mutate(Is_95 = (Earnings_next_year_Scaled < upper95) & (Earnings_next_year_Scaled > lower95))
+
+in_50 <- Testing_with_metrics %>% 
+  mutate(Is_50 = (Earnings_next_year_Scaled < upper50) & (Earnings_next_year_Scaled > lower50))
+
+med <- median(median_error$absDist)
+mean95 <- mean(in_95$Is_95)
+mean50 <- mean(in_50$Is_50)
+model_2_metrics <- matrix(c(med,mean95,mean50), ncol = 3)
+colnames(model_2_metrics) <- c("MAE","Within95","Within50")
+model_2_metrics <- as.data.frame(model_2_metrics)
+return(model_2_metrics)
+}
+```
+
+
+```{r, echo=FALSE}
+library(tidyverse)         # for reading in data, graphing, and cleaning
+library(tidymodels)        # for modeling ... tidily
+library(usemodels)         # for suggesting step_XXX() functions
+library(glmnet)            # for regularized regression, including LASSO
+library(naniar)            # for examining missing values (NAs)
+library(lubridate)         # for date  manipulation
+library(moderndive)        # for King County housing data
+library(vip)               # for variable importance plots
+library(rmarkdown)         # for paged tables
+library(dplyr)
+library(janitor)
+library(ggplot2)
+library(dplyr)
+library(bayesforecast)    
+library(bayesrules)
+library(tidyverse)
+library(rstanarm)
+library(broom.mixed)
+library(tidybayes)
+library(tidyverse)
+library(bayesplot)
+library(ggplot2)
+```
+
+```{r}
+data <- read.csv("FINALDATASET.csv")
+#Selecting necessary variables
+data <- dplyr::select(data, c("YEAR", "COMPANY", "MARKET.CAP", "EARNINGS", "SALES", "CASH", "Name", "Sector", "Earnings_next_year"))
+
+#Scaling Variables of Interest
+data <- data %>% 
+  mutate(EARNINGS_Scaled = EARNINGS/1000000000,
+         CASH_Scaled = CASH/1000000000,
+         MARKET.CAP_Scaled = MARKET.CAP/1000000000,
+         Earnings_next_year_Scaled = Earnings_next_year/1000000000,
+         SALES_Scaled = SALES/1000000000)
+
+#Adding Lagged Variables
+data <- data %>% 
+  group_by(COMPANY) %>%
+  mutate(EARNINGS_1_YEAR_AGO = lead(EARNINGS_Scaled, n = 1), 
+         EARNINGS_2_YEAR_AGO = lead(EARNINGS_Scaled, n = 2),
+         EARNINGS_3_YEAR_AGO = lead(EARNINGS_Scaled, n = 3),
+         EARNINGS_4_YEAR_AGO = lead(EARNINGS_Scaled, n = 4)) %>% 
+  mutate(SALES_1_YEAR_AGO = lead(SALES_Scaled, n = 1),
+         SALES_2_YEAR_AGO = lead(SALES_Scaled, n = 2),
+         SALES_3_YEAR_AGO = lead(SALES_Scaled, n = 3),
+         SALES_4_YEAR_AGO = lead(SALES_Scaled, n = 4))
+
+#Add_Dummy if Company is 100
+temp <- data %>% 
+  group_by(COMPANY) %>% 
+  summarize(count = n(), 
+            mean_MC = mean(MARKET.CAP)) %>% 
+  filter(count == 23) %>% 
+  arrange(desc(mean_MC)) %>% 
+  head(100)
+
+temp <- temp$COMPANY
+
+data <- data %>% 
+  mutate(Is_top_100 = case_when(COMPANY %in% temp ~ 1,TRUE ~ 0))
+```
+
+# Graphing Outliers 
+
+We will do some basic exploration regarding our data set, particularly our dependent variable of interest: Earnings the next year. Earnings_next_year_Scaled is the company's earnings the next year. So Earnings_next_year_Scaled value of 1 for Company X in 2015 can be interpreted as 1 billion dollars in earnings in 2016. 
+
+We explore Earnings next year below: 
+
+```{r}
+#Graphing Outliers
+data %>% ggplot(aes(x = Earnings_next_year_Scaled)) + 
+  geom_boxplot()
+
+data %>% ggplot(aes(x = EARNINGS_Scaled, y= Earnings_next_year_Scaled))+
+  geom_point()
+```
+There is a high number of outliers in our data, this is not ideal as we do not want to fit a model that includes outliers as predicting and modeling posterior distributions would be hard in the grand scheme.  
+
+I remove outliers by classifying them as one if they are 1.5*IQR (Interquartile Range)
+
+```{r}
+Q <- quantile(data$Earnings_next_year_Scaled, probs=c(.25, .75), na.rm = TRUE)
+iqr <- IQR(data$Earnings_next_year_Scaled, na.rm = TRUE)
+up <-  Q[2]+.90*iqr # Upper Range  
+low<- Q[1]-.90*iqr # Lower Range
+eliminated<- subset(data, data$Earnings_next_year_Scaled > (low) & data$Earnings_next_year_Scaled < (up))
+data_elimatedO <- eliminated
+```
+
+I graph data points without outliers 
+
+```{r}
+data_elimatedO %>% ggplot(aes(x = Earnings_next_year_Scaled)) + 
+  geom_boxplot()
+
+data_elimatedO %>% ggplot(aes(x = EARNINGS_Scaled, y= Earnings_next_year_Scaled))+
+  geom_point()
+```
+
+This is much better as the data points are closer in proximity. 
+
+Since we have time-series data, we create a testing set by subseting each company's 2nd to latest year. We will predict earnings's next year with the testing set and compare it with the actual values.
+
+```{r}
+testing <- data_elimatedO %>% 
+   group_by(COMPANY) %>% 
+   filter(row_number()==1)
+
+training <- anti_join(data_elimatedO, testing)
+```
+
+# Models without heirc structure
+
+This model is a regular simple normal regression, as we are not taking advantage of the grouped structure of our data. We are having a complete pooled regression here. 
+
+$$\begin{split}
+Y_i | \beta_0, \beta_1, \sigma & \stackrel{ind}{\sim} N(\mu_i, \sigma^2) \;\; \text{ where } \mu_i = \beta_0 + \beta_1 X_i\\
+\beta_{0c} & \sim N(1.1, 2.5^2) \\
+\beta_1    & \sim N(0, 2.5^2) \\
+\sigma     & \sim \text{Exp}(1) \\
+\end{split}$$
+
+
+```{r}
+model_1_no_data <- eliminated %>% 
+  select(c("Earnings_next_year_Scaled","EARNINGS_Scaled","Is_top_100")) %>% 
+  na.omit()
+
+model_1_no <- stan_glm(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled, data = model_1_no_data,
+  family = gaussian,
+  prior_PD = FALSE,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+pp_check(model_1_no)
+```
+
+Our model seems to do decent, however the structure of the data is still a bit right skewed as some of the companies included in our dataset have higher earnings around the 3+ billion range. 
+
+I Interact sector with Earnings hopping to improve the model's fitness to our dependent variable.  
+
+```{r}
+model_1_interact_no_data <- data_elimatedO %>% 
+  select(c("Earnings_next_year_Scaled","EARNINGS_Scaled","Sector","Is_top_100")) %>% 
+  na.omit()
+model_1_interact_no <- stan_glm(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled*Sector, data = model_1_interact_no_data,
+  family = gaussian,
+  prior_PD = FALSE,
+  chains = 4, iter = 5000*2, seed = 84735, refresh = 0)
+pp_check(model_1_interact_no)
+```
+
+Unfortunetly, the model is not the best fit. 
+
+Below is our first model (model_1_no) notation with adjusted priors
+
+```{r}
+prior_summary(model_1_no)
+```
+
+
+$$\begin{split}
+Y_i | \beta_0, \beta_1, \sigma & \stackrel{ind}{\sim} N(\mu_i, \sigma^2) \;\; \text{ where } \mu_i = \beta_0 + \beta_1 X_i\\
+\beta_{0c} & \sim N(0.68, 2^2) \\
+\beta_1    & \sim N(0, 1.6^2) \\
+\sigma     & \sim \text{Exp}(1.3) \\
+\end{split}$$
+
+#Model 2 
+
+Now, we will move on to utilizing the structure of our data, where we have consecutive observations for each company for several years. Note: we fit each model twice, one using all data and another using training data (for evaluation purposes)
+
+#Loading Model
+```{r}
+model_2 <- read_rds("model_2_Heirc_1yr_no_o_nick.rds")
+model_2_train <- readRDS("model_2_Heirc_1yr_no_o_train_nick.rds")
+```
+
+```{r, eval=FALSE}
+model_2_Heirc_1yr_data <- data_elimatedO %>% 
+  select(c("Earnings_next_year_Scaled","EARNINGS_Scaled","COMPANY")) %>% 
+  na.omit()
+
+model_2_Heirc_1yr_no_o <- stan_glmer(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + (1 | COMPANY), data = model_2_Heirc_1yr_data, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = FALSE)
+
+model_2_Heirc_1yr_training_data <- training %>% select(c("Earnings_next_year_Scaled","EARNINGS_Scaled","COMPANY")) %>% 
+  na.omit()
+
+model_2_Heirc_1yr_no_o_train <- stan_glmer(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + (1 | COMPANY), data = model_2_Heirc_1yr_training_data, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = FALSE, refresh = 0)
+```
+
+```{r}
+prior_summary(model_2)
+```
+
+#Model 2 Notation
+
+Below is the notation for our model 2. 
+
+$$\begin{split}
+\text{Relationship within company:} & \\
+Y_{ij} | \beta_{0j}, \beta_1, \sigma_y 
+& \sim N(\mu_{ij}, \sigma_y^2) \;\; \text{ where } \mu_{ij} = \beta_{0j} + \beta_1 X_{ij} \\
+& \\
+\text{Variability between companies:} & \\
+\beta_{0j} & \stackrel{ind}{\sim} N(\beta_0, \sigma_0^2) \\
+& \\
+\text{Prior information on Globals with Adjusted Prior} & \\
+\beta_{0c} & \sim N(0.68, 2^2) \\
+\beta_1 & \sim N(0, 1.6^2) \\
+\sigma_y  & \sim \text{Exp}(1.3) \\
+\sigma_0  & \sim \text{Exp}(1) \\
+\end{split}$$
+
+#Model 3
+
+In addition to having a hierarchical regression with one predictor, we fit another model using 3 years of lagged data as well as a sector dummy variable. We do this because earnings current year seemed to have a differential effect on earnings next year dependent on the company's sector. Again, we fit two different models. 
+
+#Loading Models 
+```{r}
+testing_1 <- testing %>% 
+  na.omit()
+model_3 <- readRDS("model_complex_with_hiar_nick.rds")
+model_3_train <- readRDS("model_complex_with_hiar_train_nick.rds")
+collect_metrics_pred(model_4_train, testing_1)
+```
+
+```{r, eval=FALSE}
+model_complex_with_hiar_data <- data_elimatedO %>% 
+  select(c("Earnings_next_year_Scaled","EARNINGS_Scaled","EARNINGS_1_YEAR_AGO","EARNINGS_2_YEAR_AGO","EARNINGS_3_YEAR_AGO","COMPANY","Sector")) %>% 
+  na.omit()
+
+model_complex_with_hiar <- stan_glmer(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO + EARNINGS_2_YEAR_AGO + EARNINGS_3_YEAR_AGO +  (1 | COMPANY) + Sector, data = model_complex_with_hiar_data, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = FALSE, refresh = 0)
+
+#Train 
+model_diff_inter_train_data <- training %>% 
+  select(c("Earnings_next_year_Scaled","EARNINGS_Scaled","EARNINGS_1_YEAR_AGO","COMPANY","Sector")) %>% na.omit()
+
+model_diff_inter_train <- stan_glmer(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO  +  (1 | COMPANY) + Sector, data = model_diff_inter_train_data, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = FALSE, refresh = 0)
+
+write_rds(model_diff_inter_train, "Diff_Inter_train_nick.rds")
+
+model_diff_inter_slope_train <- training %>%
+  select(c("Earnings_next_year_Scaled","Sector","COMPANY","EARNINGS_Scaled","EARNINGS_1_YEAR_AGO")) %>% 
+  na.omit()
+
+model_4_train <- stan_glmer(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO + (EARNINGS_Scaled | COMPANY) + Sector, data = model_diff_inter_slope_train, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = FALSE)
+write_rds(model_4_train, "Diff_inter_slope_train_nick.rds")
+```
+
+```{r}
+prior_summary(model_3)
+```
+
+#Model 3 Notation: 
+
+$$\begin{split}
+\text{Relationship within company:} & \\
+Y_{ij} | \beta_{0j}, \beta_1, \sigma_y 
+& \sim N(\mu_{ij}, \sigma_y^2) \;\; \text{ where } \mu_{ij} = \beta_{0j} + \beta_1 X_{ij} + \beta_2 X_{ij} + \beta_2 X_{ij}...\\
+& \\
+\text{Variability between companies:} & \\
+\beta_{0j} & \stackrel{ind}{\sim} N(\beta_0, \sigma_0^2) \\
+& \\
+\text{Prior information on Globals with Adjusted Prior} & \\
+\beta_{0c} & \sim N(0.72, 2^2) \\
+\beta_1 & \sim N(0, 1.63^2) \\
+\beta_2 & \sim N(0, 1.63^2) \\
+\beta_3 & \sim N(0, 1.57^2) \\
+.\\
+.\\
+.\\
+\sigma_y  & \sim \text{Exp}(1.2) \\
+\sigma_0  & \sim \text{Exp}(1) \\
+\end{split}$$
+
+# Is this the right model? 
+
+Next we plot the posterior distributions and compare to the actual values observed in the data set. 
+
+```{r}
+pp_check(model_2) 
+pp_check(model_3)
+```
+
+Again, several company earning's on the right seem to be causing model fitness difficulties. Both models run into this problem. 
+
+There seems to be no difference between model 2 and 3 in terms of fitting the structure of earnings next year. We will now dive into predicting the accuracy of the models. 
+
+#How Accurate are our the models? 
+
+#Model 2 - Specific Exampls with companies:
+
+Below, we compare our predictions for American Airlines. We plot 750 random values predicted from our predictions (out of 20,000). As we can see below our predictions's range cover the actual value of earnings for 2020 fiscal year for both models. 
+
+```{r}
+set.seed(84732)
+predict_model("AAL", model_2_train)
+# mcmc_areas(predict_next_year, prob = 0.8) +
+#   ggplot2::scale_y_discrete(labels = c(`test_comp`)) + geom_vline(xintercept = actual, linetype = "dashed", colour = "red") 
+#Need Help Because X scale is different
+```
+
+#Model 3 - Specific Exampls with companies:
+
+```{r}
+set.seed(84732)
+predict_model("AAL", model_3_train)
+# mcmc_areas(predict_next_year, prob = 0.8) +
+#   ggplot2::scale_y_discrete(labels = c(`test_comp`)) + geom_vline(xintercept = actual, linetype = "dashed", colour = "red") 
+```
+
+The predictions for the model_3 seem to be slightly better as more posterior predictive points are near the actual value for "2020"
+
+#Computing Model 2 Metrics
+```{r}
+set.seed(84732)
+model_2_metrics <- collect_metrics_pred(model_2_train, testing)
+```
+
+
+#Computing Model 3 Metrics 
+```{r}
+testing_1 <- testing %>%
+  na.omit()
+model_3_metrics <- collect_metrics_pred(model_3_train, testing_1)
+```
+
+#Evaluating Metrics 
+Model 2
+
+```{r}
+model_2_metrics
+```
+
+Model 3
+
+```{r}
+model_3_metrics
+```
+
+We can see that our model 3 preforms slighty better. Where our average median posterior prediction is off by .3697147 billion as opposed to model 2's .40 billion. Furthermore, our 95 and 50 interval values are both slightly better than model 2's.  
+
+#Shrinkage 
+
+Since we modeled based off different companies having different intercepts, it is worthwhile to checkout how the company baselines shrunk compared to each other and between the two different models. 
+
+#Model 2 Shrinkage 
+
+```{r}
+set.seed(84732)
+COMPANY_chains <- model_2 %>%
+  spread_draws(`(Intercept)`, b[,COMPANY]) %>%
+  mutate(mu_j = `(Intercept)` + b)
+COMPANY_summary_scaled <- COMPANY_chains %>%
+  select(-`(Intercept)`, -b) %>%
+  mean_qi(.width = 0.80) %>%
+  mutate(COMPANY = fct_reorder(COMPANY, mu_j))
+ggplot(
+    sample_n(COMPANY_summary_scaled,70),
+    aes(x = COMPANY, y = mu_j, ymin = .lower, ymax = .upper)) +
+    geom_pointrange() +
+    geom_hline(yintercept = mean(data$Earnings_next_year_Scaled), linetype = "dashed") + 
+  xaxis_text(angle = 90, hjust = 1)
+```
+
+
+#Model 3 Shrinkage 
+```{r}
+set.seed(84732)
+COMPANY_chains <- model_3 %>%
+  spread_draws(`(Intercept)`, b[,COMPANY]) %>%
+  mutate(mu_j = `(Intercept)` + b)
+COMPANY_summary_scaled <- COMPANY_chains %>%
+  select(-`(Intercept)`, -b) %>%
+  mean_qi(.width = 0.80) %>%
+  mutate(COMPANY = fct_reorder(COMPANY, mu_j))
+ggplot(
+    sample_n(COMPANY_summary_scaled,70),
+    aes(x = COMPANY, y = mu_j, ymin = .lower, ymax = .upper)) +
+    geom_pointrange() +
+    geom_hline(yintercept = mean(data$Earnings_next_year_Scaled), linetype = "dashed") + 
+  xaxis_text(angle = 90, hjust = 1)
+```
+
+#Global Standard Deviation Parameters 
+```{r}
+tidy(model_2, effects = "ran_pars")
+tidy(model_3, effects = "ran_pars")
+```
+
+In model 2, about 40.06% of the variance can be explained between companies. In model 3, about 38.29% of the variance can be explained between companies. This means that when including sectors and lagged variables, more variable shrinkage occurred. Unfortunately this shrinkage is not as evident in the plotted graphs above. Model 3's baseline intercepts differ among each other slightly less than model 2's. 
+
+#Best Model: Random Slopes and Intercepts
+
+Below we graph 4 random companies, we can see that earnings in the current year impacts earnings next year differently among different companies. 
+
+```{r}
+eliminated %>% 
+  filter(COMPANY %in% c("AAL","CVS","DAL","WAB")) %>% 
+  ggplot(., aes(x = EARNINGS_Scaled, y = Earnings_next_year_Scaled)) + 
+    geom_point() + 
+    geom_smooth(method = "lm", se = FALSE) + 
+    facet_grid(~ COMPANY)
+```
+
+To get a better idea of the varying slopes, I graph 50 random companies together. 
+
+```{r}
+vector <- eliminated$COMPANY
+vector <- sample_n(as.data.frame(vector), 50)
+vector <- as.list(vector)
+eliminated %>% 
+  filter(COMPANY %in% vector$vector) %>% 
+  ggplot(aes(x=EARNINGS_Scaled, y= Earnings_next_year_Scaled, group = COMPANY))+
+  geom_smooth(method = "lm", se= FALSE, size = 0.5)
+```
+
+We believe it makes sense to replace the global earnings coefficient  with a company specific earnings coefficient. 
+
+#unsure about these
+
+Below is our best preforming model. Here, earnings 1 year ago will impact earnings next year differently for each company. 
+
+$$\begin{split}
+Y_{ij} | \beta_{0j}, \beta_{1j}, \sigma_y & \sim N(\mu_{ij}, \sigma_y^2) \;\; \text{ where } \; \mu_{ij} = \beta_{0j} + \beta_{1j} X_{ij} + \beta X_{2} +... \\
+& \\
+\beta_{0j} & \sim N(0, 2.5^2) \\
+\beta_{1j} & \sim N(0, 1.6^2) \\
+& \\
+\beta_{0c} & \sim N(0.69, 2.5^2)  \\
+\beta_1 & \sim N(m_1, s_1^2) \\
+\sigma_y & \sim \text{Exp}(l_y)    \\
+\sigma_0, \sigma_1, ... & \sim \text{(+ more complicated things)}. \\
+\end{split}$$
+
+```{r}
+prior_summary(model_4_train)
+```
+
+Here we are implying a join uniform prior, as most values will be default values. 
+
+```{r, eval=FALSE}
+model_4_train <- training %>%
+  select(c("Earnings_next_year_Scaled","Sector","COMPANY","EARNINGS_Scaled","EARNINGS_1_YEAR_AGO")) %>% 
+  na.omit()
+
+model_4_train <- stan_glmer(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO + (EARNINGS_1_YEAR_AGO | COMPANY) + Sector, data = model_4_train, 
+  family = gaussian,
+  chains = 4, iter = 5000*2, seed = 84735, 
+  prior_PD = FALSE)
+write_rds(model_4_train, "Model_4_train_nick.rds")
+collect_metrics_pred(model_4_train, testing_1)
+```
+
+```{r}
+tidy(model_4_train, effects = "fixed", conf.int = TRUE, conf.level = .80)
+```
+
+```{r}
+model_4_train <- read_rds("Model_4_nick_train.rds")
+tidy(model_4_train, effects = "ran_pars")
+model_5_train <- read_rds("model_5_train_nick.rds")
+predict_model("ABC", model_4_train)
+collect_metrics_pred(model_5_train, testing_1)
+collect_metrics_pred(model_3_train, testing_1)
+collect_metrics_pred(model_4_train, testing_1)
+```
+
+The standard deviation $\sigma_1$ in the Earnings 1 year ago coefficient ($\beta_{1j}$) is likely to be around 0.37 billion per year. In the grand scheme of things, this number is quite high. 
+
+For $\sigma_y$, an individual Company's net earnings next year tend to deviate from their own mean model by .50 billion. 
+
+There is a semi strong correlation between the Company Specific $\beta_{0j}$ and $\beta_{1j}$ parameters of -0.44. It seems that company's with initial earnings will tend to experience a decrease in earnings compared to their previous years. 
+
+### Bayesian Forecast SARIMA: 
+
+In our last model specification, we decided to use the bayesforcas package. In particular we are fitting a SARIMA model in Stan.
+
+SARIMA stands for seasonal autoregressive integrated moving average. This is an extension of ARIMA and is therefore more robust as it is able to support seasonal data. 
+
+ARIMA is a method that combines both auto-regressive methods and moving averages- it is widely used on time series data in attempts to predict future values. There are four components that explain time series data, trend, seasonality, irregularity, and cyclic components. 
+
+Here are the parameters for an ARIMA model: 
+
+P - order of the AR term. This is the number of Y to be used as predictors. For example, if we are predicting 2021 earnings, how many previous years earnings are we going to use? 
+Q- Order of the MA term. This is the number of lagged forecast errors. How many past forecast errors will we be using? 
+D- the minimum differencing period. A stationary time series implies one that has properties that do not depend on the time at which the series is observed. 
+
+As mentioned above, SARIMA is able to support seasonal data. Below are the parameters for a SARIMA model that ARIMA does not have. 
+P-  Seasonal autoregressive order. A P=1 would make use of the first seasonally offset observation in the model, e.g. t-(m1) or t-12. A P=2, would use the last two seasonally offset observations t-(m1), t-(m2).
+D- Seasonal difference order. A D of 1 would calculate a first order seasonal difference and a Q=1 would use a first order error in the model (e.g. moving average).
+Q Seasonal moving average order.
+M- The number of time steps for a single seasonal period. M is a very important parameter as it influences the P, D, and Q parameters. For example, an m of 5 for yearly data suggests a 5-year seasonal cycle (in the context of business cycles. 
+
+```{r}
+library(bayesforecast)
+```
+
+After running the model, we then move on to predict the earnings of the future year for the companies. The companies we are going to predict will be Amazon (symbol: "AMZN"), American Airlines (symbol: "AAL"), and Ford (symbol: "F"). 
+
+
+```{r}
+AMZN <- data %>% 
+  filter(COMPANY == 'AMZN') %>% 
+  dplyr::select(EARNINGS_Scaled) %>% 
+  arrange(EARNINGS_Scaled)
+
+vector <- AMZN$EARNINGS_Scaled
+
+myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
+
+sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
+                  prior_mu0 = student(mu = 0,sd = 1,df = 7),
+                  refresh = 0)
+```
+
+```{r}
+sf1
+```
+
+```{r fig3}
+check_residuals(sf1)
+autoplot(forecast(object = sf1,h = 12))
+```
+
+First, for Amazon, we could see that the earnings are predicted to increase from 2021 to 2030, moving from 21 billions to around 38 billions in 2030. 
+
+For the residuals plot, we can see that the residuals expect to increase in the future and keep increasing as the farther from 2020, the data becomes more and more unpredictable. Overall, the residuals lie around -1 and 0, which suggests that the error is not that far off from the actual value. 
+
+We then move on to the other companies: Microsoft and American Airlines:
+
+```{r}
+AAL <- data %>% 
+  filter(COMPANY == 'AAL') %>% 
+  dplyr::select(EARNINGS_Scaled) %>% 
+  arrange(EARNINGS_Scaled)
+
+vector <- AAL$EARNINGS_Scaled
+
+myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
+
+sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
+                  prior_mu0 = student(mu = 0,sd = 1,df = 7),
+                  refresh = 0)
+```
+
+```{r}
+check_residuals(sf1)
+autoplot(forecast(object = sf1,h = 12))
+```
+
+For American Airlines, we see a different story. As we can see from the graph, as airlines industry is an extremely cyclical field, the earnings fluctuate a lot. We could see that they fluctuate a lot during the previous years. With that in mind, the model predicts that American Airlines will not improve the much during the following years from 2021 to 2030. 
+
+```{r}
+Fo <- data %>% 
+  filter(COMPANY == 'F') %>% 
+  dplyr::select(EARNINGS_Scaled) %>% 
+  arrange(EARNINGS_Scaled)
+
+vector <- Fo$EARNINGS_Scaled
+
+myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
+
+sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
+                  prior_mu0 = student(mu = 0,sd = 1,df = 7),
+                  refresh = 0)
+```
+
+```{r}
+check_residuals(sf1)
+autoplot(forecast(object = sf1,h = 12))
+```
+
+For Ford, it follows the same case as American Airlines. Even though the earnings increase, the model predicts that Ford's earning will stay relatively the same throughout the year from 2021 to 2030. For the residuals part, the residuals fluctuate around -1 to 1, with some exceptions of 6 and 11 in around 2002 and 2020 (the year when COVID-19 started). 
