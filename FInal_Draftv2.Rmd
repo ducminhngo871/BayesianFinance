@@ -299,250 +299,61 @@ Y_i | \beta_0, \beta_1, \sigma & \stackrel{ind}{\sim} N(\mu_i, \sigma^2) \;\; \t
 \sigma     & \sim \text{Exp}(1.3) \\
 \end{split}$$
 
-#Model 2 
+#Heirichal Models  
 
 Now, we will move on to utilizing the structure of our data, where we have consecutive observations for each company for several years. Note: we fit each model twice, one using all data and another using training data (for evaluation purposes)
 
 #Loading Model
 ```{r}
-model_2 <- read_rds("model_2_Heirc_1yr_no_o_nick.rds")
-model_2_train <- readRDS("model_2_Heirc_1yr_no_o_train_nick.rds")
+Diff_inter_train <- readRDS("Diff_inter_train_nick.rds")
 ```
 
 ```{r, eval=FALSE}
-model_2_Heirc_1yr_data <- data_elimatedO %>% 
-  select(c("Earnings_next_year_Scaled","EARNINGS_Scaled","COMPANY")) %>% 
-  na.omit()
+model_diff_inter_train_data <- training %>% 
+  select(c("Earnings_next_year_Scaled","EARNINGS_Scaled","EARNINGS_1_YEAR_AGO","COMPANY","Sector")) %>% na.omit()
 
-model_2_Heirc_1yr_no_o <- stan_glmer(
-  Earnings_next_year_Scaled ~ EARNINGS_Scaled + (1 | COMPANY), data = model_2_Heirc_1yr_data, 
-  family = gaussian,
-  chains = 4, iter = 5000*2, seed = 84735, 
-  prior_PD = FALSE)
-
-model_2_Heirc_1yr_training_data <- training %>% select(c("Earnings_next_year_Scaled","EARNINGS_Scaled","COMPANY")) %>% 
-  na.omit()
-
-model_2_Heirc_1yr_no_o_train <- stan_glmer(
-  Earnings_next_year_Scaled ~ EARNINGS_Scaled + (1 | COMPANY), data = model_2_Heirc_1yr_training_data, 
+model_diff_inter_train <- stan_glmer(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO  + Sector + (1 | COMPANY) , data = model_diff_inter_train_data, 
   family = gaussian,
   chains = 4, iter = 5000*2, seed = 84735, 
   prior_PD = FALSE, refresh = 0)
+
+write_rds(model_diff_inter_train, "Diff_Inter_train_nick.rds")
 ```
 
 ```{r}
-prior_summary(model_2)
+prior_summary(Diff_inter_train)
 ```
 
-#Model 2 Notation
+#Different Intercept Notation
 
 Below is the notation for our model 2. 
 
 $$\begin{split}
 \text{Relationship within company:} & \\
 Y_{ij} | \beta_{0j}, \beta_1, \sigma_y 
-& \sim N(\mu_{ij}, \sigma_y^2) \;\; \text{ where } \mu_{ij} = \beta_{0j} + \beta_1 X_{ij} \\
+& \sim N(\mu_{ij}, \sigma_y^2) \;\; \text{ where } \mu_{ij} = \beta_{0j} + \beta_1 X_{ij} + \beta_2 X_{ij} + \beta_3 X_{ij}...\\
 & \\
 \text{Variability between companies:} & \\
 \beta_{0j} & \stackrel{ind}{\sim} N(\beta_0, \sigma_0^2) \\
 & \\
 \text{Prior information on Globals with Adjusted Prior} & \\
-\beta_{0c} & \sim N(0.68, 2^2) \\
-\beta_1 & \sim N(0, 1.6^2) \\
-\sigma_y  & \sim \text{Exp}(1.3) \\
+\beta_{0c} & \sim N(0.59, 1.5^2) \\
+\beta_1 & \sim N(0, 1.74^2) \\
+\beta_2 & \sim N(0, 1.60^2) \\
+\beta_3 & \sim N(0, 4.60^2) \\
+.\\
+.\\
+.\\
+\sigma_y  & \sim \text{Exp}(1.6) \\
 \sigma_0  & \sim \text{Exp}(1) \\
 \end{split}$$
 
-#Model 3
+#Different Intercept and Slope Model. 
 
-In addition to having a hierarchical regression with one predictor, we fit another model using 3 years of lagged data as well as a sector dummy variable. We do this because earnings current year seemed to have a differential effect on earnings next year dependent on the company's sector. Again, we fit two different models. 
+In addition to having a hierarchical regression with different intercepts. We decide to add a model with different intercepts and slopes.  
 
-#Loading Models 
-```{r}
-testing_1 <- testing %>% 
-  na.omit()
-model_3 <- readRDS("model_complex_with_hiar_nick.rds")
-model_3_train <- readRDS("model_complex_with_hiar_train_nick.rds")
-collect_metrics_pred(model_4_train, testing_1)
-```
-
-```{r, eval=FALSE}
-model_complex_with_hiar_data <- data_elimatedO %>% 
-  select(c("Earnings_next_year_Scaled","EARNINGS_Scaled","EARNINGS_1_YEAR_AGO","EARNINGS_2_YEAR_AGO","EARNINGS_3_YEAR_AGO","COMPANY","Sector")) %>% 
-  na.omit()
-
-model_complex_with_hiar <- stan_glmer(
-  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO + EARNINGS_2_YEAR_AGO + EARNINGS_3_YEAR_AGO +  (1 | COMPANY) + Sector, data = model_complex_with_hiar_data, 
-  family = gaussian,
-  chains = 4, iter = 5000*2, seed = 84735, 
-  prior_PD = FALSE, refresh = 0)
-
-#Train 
-model_diff_inter_train_data <- training %>% 
-  select(c("Earnings_next_year_Scaled","EARNINGS_Scaled","EARNINGS_1_YEAR_AGO","COMPANY","Sector")) %>% na.omit()
-
-model_diff_inter_train <- stan_glmer(
-  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO  +  (1 | COMPANY) + Sector, data = model_diff_inter_train_data, 
-  family = gaussian,
-  chains = 4, iter = 5000*2, seed = 84735, 
-  prior_PD = FALSE, refresh = 0)
-
-write_rds(model_diff_inter_train, "Diff_Inter_train_nick.rds")
-
-model_diff_inter_slope_train <- training %>%
-  select(c("Earnings_next_year_Scaled","Sector","COMPANY","EARNINGS_Scaled","EARNINGS_1_YEAR_AGO")) %>% 
-  na.omit()
-
-model_4_train <- stan_glmer(
-  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO + (EARNINGS_Scaled | COMPANY) + Sector, data = model_diff_inter_slope_train, 
-  family = gaussian,
-  chains = 4, iter = 5000*2, seed = 84735, 
-  prior_PD = FALSE)
-write_rds(model_4_train, "Diff_inter_slope_train_nick.rds")
-```
-
-```{r}
-prior_summary(model_3)
-```
-
-#Model 3 Notation: 
-
-$$\begin{split}
-\text{Relationship within company:} & \\
-Y_{ij} | \beta_{0j}, \beta_1, \sigma_y 
-& \sim N(\mu_{ij}, \sigma_y^2) \;\; \text{ where } \mu_{ij} = \beta_{0j} + \beta_1 X_{ij} + \beta_2 X_{ij} + \beta_2 X_{ij}...\\
-& \\
-\text{Variability between companies:} & \\
-\beta_{0j} & \stackrel{ind}{\sim} N(\beta_0, \sigma_0^2) \\
-& \\
-\text{Prior information on Globals with Adjusted Prior} & \\
-\beta_{0c} & \sim N(0.72, 2^2) \\
-\beta_1 & \sim N(0, 1.63^2) \\
-\beta_2 & \sim N(0, 1.63^2) \\
-\beta_3 & \sim N(0, 1.57^2) \\
-.\\
-.\\
-.\\
-\sigma_y  & \sim \text{Exp}(1.2) \\
-\sigma_0  & \sim \text{Exp}(1) \\
-\end{split}$$
-
-# Is this the right model? 
-
-Next we plot the posterior distributions and compare to the actual values observed in the data set. 
-
-```{r}
-pp_check(model_2) 
-pp_check(model_3)
-```
-
-Again, several company earning's on the right seem to be causing model fitness difficulties. Both models run into this problem. 
-
-There seems to be no difference between model 2 and 3 in terms of fitting the structure of earnings next year. We will now dive into predicting the accuracy of the models. 
-
-#How Accurate are our the models? 
-
-#Model 2 - Specific Exampls with companies:
-
-Below, we compare our predictions for American Airlines. We plot 750 random values predicted from our predictions (out of 20,000). As we can see below our predictions's range cover the actual value of earnings for 2020 fiscal year for both models. 
-
-```{r}
-set.seed(84732)
-predict_model("AAL", model_2_train)
-# mcmc_areas(predict_next_year, prob = 0.8) +
-#   ggplot2::scale_y_discrete(labels = c(`test_comp`)) + geom_vline(xintercept = actual, linetype = "dashed", colour = "red") 
-#Need Help Because X scale is different
-```
-
-#Model 3 - Specific Exampls with companies:
-
-```{r}
-set.seed(84732)
-predict_model("AAL", model_3_train)
-# mcmc_areas(predict_next_year, prob = 0.8) +
-#   ggplot2::scale_y_discrete(labels = c(`test_comp`)) + geom_vline(xintercept = actual, linetype = "dashed", colour = "red") 
-```
-
-The predictions for the model_3 seem to be slightly better as more posterior predictive points are near the actual value for "2020"
-
-#Computing Model 2 Metrics
-```{r}
-set.seed(84732)
-model_2_metrics <- collect_metrics_pred(model_2_train, testing)
-```
-
-
-#Computing Model 3 Metrics 
-```{r}
-testing_1 <- testing %>%
-  na.omit()
-model_3_metrics <- collect_metrics_pred(model_3_train, testing_1)
-```
-
-#Evaluating Metrics 
-Model 2
-
-```{r}
-model_2_metrics
-```
-
-Model 3
-
-```{r}
-model_3_metrics
-```
-
-We can see that our model 3 preforms slighty better. Where our average median posterior prediction is off by .3697147 billion as opposed to model 2's .40 billion. Furthermore, our 95 and 50 interval values are both slightly better than model 2's.  
-
-#Shrinkage 
-
-Since we modeled based off different companies having different intercepts, it is worthwhile to checkout how the company baselines shrunk compared to each other and between the two different models. 
-
-#Model 2 Shrinkage 
-
-```{r}
-set.seed(84732)
-COMPANY_chains <- model_2 %>%
-  spread_draws(`(Intercept)`, b[,COMPANY]) %>%
-  mutate(mu_j = `(Intercept)` + b)
-COMPANY_summary_scaled <- COMPANY_chains %>%
-  select(-`(Intercept)`, -b) %>%
-  mean_qi(.width = 0.80) %>%
-  mutate(COMPANY = fct_reorder(COMPANY, mu_j))
-ggplot(
-    sample_n(COMPANY_summary_scaled,70),
-    aes(x = COMPANY, y = mu_j, ymin = .lower, ymax = .upper)) +
-    geom_pointrange() +
-    geom_hline(yintercept = mean(data$Earnings_next_year_Scaled), linetype = "dashed") + 
-  xaxis_text(angle = 90, hjust = 1)
-```
-
-
-#Model 3 Shrinkage 
-```{r}
-set.seed(84732)
-COMPANY_chains <- model_3 %>%
-  spread_draws(`(Intercept)`, b[,COMPANY]) %>%
-  mutate(mu_j = `(Intercept)` + b)
-COMPANY_summary_scaled <- COMPANY_chains %>%
-  select(-`(Intercept)`, -b) %>%
-  mean_qi(.width = 0.80) %>%
-  mutate(COMPANY = fct_reorder(COMPANY, mu_j))
-ggplot(
-    sample_n(COMPANY_summary_scaled,70),
-    aes(x = COMPANY, y = mu_j, ymin = .lower, ymax = .upper)) +
-    geom_pointrange() +
-    geom_hline(yintercept = mean(data$Earnings_next_year_Scaled), linetype = "dashed") + 
-  xaxis_text(angle = 90, hjust = 1)
-```
-
-#Global Standard Deviation Parameters 
-```{r}
-tidy(model_2, effects = "ran_pars")
-tidy(model_3, effects = "ran_pars")
-```
-
-In model 2, about 40.06% of the variance can be explained between companies. In model 3, about 38.29% of the variance can be explained between companies. This means that when including sectors and lagged variables, more variable shrinkage occurred. Unfortunately this shrinkage is not as evident in the plotted graphs above. Model 3's baseline intercepts differ among each other slightly less than model 2's. 
+#Rational behind different slopes: 
 
 #Best Model: Random Slopes and Intercepts
 
@@ -571,61 +382,200 @@ eliminated %>%
 
 We believe it makes sense to replace the global earnings coefficient  with a company specific earnings coefficient. 
 
-#unsure about these
-
-Below is our best preforming model. Here, earnings 1 year ago will impact earnings next year differently for each company. 
-
-$$\begin{split}
-Y_{ij} | \beta_{0j}, \beta_{1j}, \sigma_y & \sim N(\mu_{ij}, \sigma_y^2) \;\; \text{ where } \; \mu_{ij} = \beta_{0j} + \beta_{1j} X_{ij} + \beta X_{2} +... \\
-& \\
-\beta_{0j} & \sim N(0, 2.5^2) \\
-\beta_{1j} & \sim N(0, 1.6^2) \\
-& \\
-\beta_{0c} & \sim N(0.69, 2.5^2)  \\
-\beta_1 & \sim N(m_1, s_1^2) \\
-\sigma_y & \sim \text{Exp}(l_y)    \\
-\sigma_0, \sigma_1, ... & \sim \text{(+ more complicated things)}. \\
-\end{split}$$
-
+#Loading Models 
 ```{r}
-prior_summary(model_4_train)
+Diff_inter_slope_train <- readRDS("Diff_inter_slope_train_nick.rds")
 ```
 
-Here we are implying a join uniform prior, as most values will be default values. 
-
 ```{r, eval=FALSE}
-model_4_train <- training %>%
+model_diff_inter_slope_train_data <- training %>%
   select(c("Earnings_next_year_Scaled","Sector","COMPANY","EARNINGS_Scaled","EARNINGS_1_YEAR_AGO")) %>% 
   na.omit()
 
-model_4_train <- stan_glmer(
-  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO + (EARNINGS_1_YEAR_AGO | COMPANY) + Sector, data = model_4_train, 
+diff_slope_inter_model_train <- stan_glmer(
+  Earnings_next_year_Scaled ~ EARNINGS_Scaled + EARNINGS_1_YEAR_AGO + (EARNINGS_Scaled | COMPANY) + Sector, data = model_diff_inter_slope_train_data, 
   family = gaussian,
   chains = 4, iter = 5000*2, seed = 84735, 
   prior_PD = FALSE)
-write_rds(model_4_train, "Model_4_train_nick.rds")
-collect_metrics_pred(model_4_train, testing_1)
+write_rds(diff_slope_inter_model_train, "Diff_inter_slope_train_nick.rds")
 ```
 
 ```{r}
-tidy(model_4_train, effects = "fixed", conf.int = TRUE, conf.level = .80)
+prior_summary(Diff_inter_slope_train)
+```
+
+#Diff intercepts and slopes notation: 
+
+$$\begin{split}
+Y_{ij} | \beta_{0j}, \beta_{1j}, \sigma_y & \sim N(\mu_{ij}, \sigma_y^2) \;\; \text{ where } \; \mu_{ij} = \beta_{0j} + \beta_{1j} X_{ij} + \beta_{2} X_{ij}  + \beta_{3} X_{ij}...\\
+& \\
+\beta_{0j} & \sim N(\beta_0, \sigma_0^2) \\
+\beta_{1j} & \sim N(\beta_1, \sigma_1^2) \\
+& \\
+\beta_{0c} & \sim N(0.59, 1.5^2)  \\
+\beta_1 & \sim N(0, 1.74^2) \\
+.\\
+.\\
+.\\
+\sigma_y & \sim \text{Exp}(1.6)    \\
+\sigma_0, \sigma_1, ... & \sim \text{(something a bit complicated)}. \\
+\end{split}$$
+
+# Is this the right model? 
+
+Next we plot the posterior distributions and compare to the actual values observed in the data set. 
+
+```{r}
+pp_check(Diff_inter_train) 
+pp_check(Diff_inter_slope_train)
+```
+
+Again, several company earning's on the right seem to be causing model fitness difficulties. Both models run into this problem. 
+
+There seems to be no difference between the two models in terms of fitting the structure of earnings next year. We will now dive into predicting the accuracy of the models. 
+
+#How Accurate are our the models? 
+
+#Model 2 - Specific Exampls with companies:
+
+Below, we compare our predictions for American Airlines. We plot 750 random values predicted from our predictions (out of 20,000). As we can see below our predictions's range cover the actual value of earnings for 2020 fiscal year for both models. 
+
+```{r}
+set.seed(84732)
+predict_model("AAL", Diff_inter_train)
+# mcmc_areas(predict_next_year, prob = 0.8) +
+#   ggplot2::scale_y_discrete(labels = c(`test_comp`)) + geom_vline(xintercept = actual, linetype = "dashed", colour = "red") 
+#Need Help Because X scale is different
+```
+
+#Model 3 - Specific Exampls with companies:
+
+```{r}
+set.seed(84732)
+predict_model("AAL", Diff_inter_slope_train)
+# mcmc_areas(predict_next_year, prob = 0.8) +
+#   ggplot2::scale_y_discrete(labels = c(`test_comp`)) + geom_vline(xintercept = actual, linetype = "dashed", colour = "red") 
+```
+
+The predictions for the model_3 seem to be slightly better as more posterior predictive points are near the actual value for "2020"
+
+#Computing Model 2 Metrics
+```{r}
+set.seed(84732)
+testing_1 <- testing %>% 
+  na.omit()
+Diff_inter_metrics <- collect_metrics_pred(Diff_inter_train, testing_1)
+```
+
+
+#Computing Model 3 Metrics 
+```{r}
+set.seed(84732)
+testing_1 <- testing %>%
+  na.omit()
+Diff_inter_slope_metrics <- collect_metrics_pred(Diff_inter_slope_train, testing_1)
+```
+
+#Evaluating Metrics 
+
+```{r}
+Diff_inter_metrics
 ```
 
 ```{r}
-model_4_train <- read_rds("Model_4_nick_train.rds")
-tidy(model_4_train, effects = "ran_pars")
-model_5_train <- read_rds("model_5_train_nick.rds")
-predict_model("ABC", model_4_train)
-collect_metrics_pred(model_5_train, testing_1)
-collect_metrics_pred(model_3_train, testing_1)
-collect_metrics_pred(model_4_train, testing_1)
+Diff_inter_slope_metrics
 ```
 
-The standard deviation $\sigma_1$ in the Earnings 1 year ago coefficient ($\beta_{1j}$) is likely to be around 0.37 billion per year. In the grand scheme of things, this number is quite high. 
+We can see that our model with varying intercepts and slopes preforms slighty better. Where our average median posterior prediction is off by 0.28 billion as opposed to 0.362 billion when we only have differing intercepts. Furthermore, our 95 and 50 interval values are both  better in the model with different intercept and slope.   
 
-For $\sigma_y$, an individual Company's net earnings next year tend to deviate from their own mean model by .50 billion. 
 
-There is a semi strong correlation between the Company Specific $\beta_{0j}$ and $\beta_{1j}$ parameters of -0.44. It seems that company's with initial earnings will tend to experience a decrease in earnings compared to their previous years. 
+
+
+
+#Intercept Shrinkage 
+
+Since we modeled based off different companies having different intercepts, it is worthwhile to checkout how the company baselines shrunk compared to each other and between the two different models. 
+
+#Model 2 Shrinkage 
+
+```{r}
+set.seed(84732)
+COMPANY_chains <- Diff_inter_train %>%
+  spread_draws(`(Intercept)`, b[,COMPANY]) %>%
+  mutate(mu_j = `(Intercept)` + b)
+COMPANY_summary_scaled <- COMPANY_chains %>%
+  select(-`(Intercept)`, -b) %>%
+  mean_qi(.width = 0.80) %>%
+  mutate(COMPANY = fct_reorder(COMPANY, mu_j))
+ggplot(
+    sample_n(COMPANY_summary_scaled,70),
+    aes(x = COMPANY, y = mu_j, ymin = .lower, ymax = .upper)) +
+    geom_pointrange() +
+    geom_hline(yintercept = mean(data$Earnings_next_year_Scaled), linetype = "dashed") + 
+  xaxis_text(angle = 90, hjust = 1)
+```
+
+
+#Model 3 Shrinkage 
+```{r}
+set.seed(84732)
+COMPANY_chains <- Diff_inter_slope_train %>%
+  spread_draws(`(Intercept)`, b[,COMPANY]) %>%
+  mutate(mu_j = `(Intercept)` + b)
+COMPANY_summary_scaled <- COMPANY_chains %>%
+  select(-`(Intercept)`, -b) %>%
+  mean_qi(.width = 0.80) %>%
+  mutate(COMPANY = fct_reorder(COMPANY, mu_j))
+ggplot(
+    sample_n(COMPANY_summary_scaled,70),
+    aes(x = COMPANY, y = mu_j, ymin = .lower, ymax = .upper)) +
+    geom_pointrange() +
+    geom_hline(yintercept = mean(data$Earnings_next_year_Scaled), linetype = "dashed") + 
+  xaxis_text(angle = 90, hjust = 1)
+```
+
+We randomly sample 70 companies, since if we plot all compnaies we will have more than 400 companies on the X-axis. We can visually see how the intercepts become less varied as we are looking at the hierarchical model with different intercept and slopes. 
+
+#Interpreting Coefficents 
+
+```{r}
+tidy(Diff_inter_train, effects = "fixed", conf.int = TRUE, conf.level = .80)
+tidy(Diff_inter_slope_train, effects = "fixed", conf.int = TRUE, conf.level = .80)
+```
+
+
+#Posterior analysis of within- and between-group variability
+
+```{r}
+tidy(Diff_inter_train, effects = "ran_pars")
+((0.3116985^2))/((0.3116985^2 + 0.4029317^2))*100
+```
+In the model with varying intercepts, about 37.43% of the variance can be explained between companies. 
+
+```{r}
+tidy(Diff_inter_slope_train, effects = "ran_pars")
+```
+
+The standard deviation $\sigma_1$ in the Earnings scaled coefficient ($\beta_{1j}$) is likely to be around 0.31 billion per year. In the grand scheme of things, this number is quite high. 
+
+For $\sigma_y$, an individual Company's net earnings next year tend to deviate from their own mean model by .35 billion. 
+
+There is a semi strong correlation between the Company Specific $\beta_{0j}$ and $\beta_{1j}$ parameters of -0.74. It seems that company's with initial earnings will tend to experience a decrease in earnings compared to their previous years. 
+
+#Coefficient Analysis: 
+
+```{r}
+tidy(Diff_inter_train, effects = "fixed", conf.int = TRUE, conf.level = .80)
+```
+
+For the model Diff_inter_train, we could see that the earnings this year has a much higher impact on the prediction of next year's earnings compared to the earnings 1 year ago (0.22158622 and 0.09614204). With the sector, we can clearly see that different sectors have completely different estimation for earnings. Based on the model, if a company is in Consumer Staples,Energy or Financials, that company will likely have higher prediction for earnings next year than the others. On the other hand, if a company is in the Real Estate field, that company will likely to have a lower earnings than the others. 
+
+```{r}
+tidy(Diff_inter_slope_train, effects = "fixed", conf.int = TRUE, conf.level = .80)
+```
+For the Diff_inter_slope_train model, the impact of this year's earnings is much stronger compared to the other variables (0.5467834739). It states that for one billion increase in earnings this year, the earnings for next year will increase by 0.5467 billions. Earnings next year also has much stronger impact than earnings 1 year ago. 
+
+About the sector, the situation is also fairly similar as companies that are in Consumer Staples, Energy, or Financials will likely to have higher next year's earnings than the others. However, in this model, the impact of the sector is much smaller than the Diff_inter_train model. The most notable negative earnings impact also comes from real estate as according to the model, company that is in real estate will see the earnings next year smaller than the baseline earnings of 0.12 billions. 
 
 ### Bayesian Forecast SARIMA: 
 
