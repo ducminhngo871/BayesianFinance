@@ -162,7 +162,7 @@ KO <- data %>%
 
 vector_KO <- KO$EARNINGS_Scaled
 
-myts_KO <- ts(vector_KO, start=c(1999), end=c(2021), frequency=1)
+myts_KO <- ts(vector_KO, start=c(1999), end=c(2015), frequency=1)
 
 sfKO = stan_sarima(ts = myts_KO,order = c(1,1,1),seasonal = c(1,1,1),
                   prior_mu0 = student(mu = 0,sd = 1,df = 7))
@@ -172,4 +172,194 @@ sfKO = stan_sarima(ts = myts_KO,order = c(1,1,1),seasonal = c(1,1,1),
 autoplot(forecast(object = sfKO,h = 12))
 ```
 
+```{r}
+forecast(object = sfKO,h = 12)
+```
+
 For Coca Cola, it follows the same case as American Airlines. Even though the earnings increase over time, the model predicts that Ford's earning will stay relatively the same throughout the year from 2021 to 2030. It should be fairly clear as Coca Cola is a company that has developed for a really long period of time and can be considered to be a dividend company. With that in mind, it is fairly reasonable to see the earnings of the company to stay relatively the same after a period. 
+
+```{r}
+Q <- quantile(data$Earnings_next_year_Scaled, probs=c(.25, .75), na.rm = TRUE)
+iqr <- IQR(data$Earnings_next_year_Scaled, na.rm = TRUE)
+up <-  Q[2]+.90*iqr # Upper Range  
+low<- Q[1]-.90*iqr # Lower Range
+eliminated<- subset(data, data$Earnings_next_year_Scaled > (low) & data$Earnings_next_year_Scaled < (up))
+data_elimatedO <- eliminated
+```
+
+
+### Prediction for next year's earnings only: 
+
+```{r}
+COMPANY_Names <- data_elimatedO$COMPANY
+unique_COMPANY <- unique(COMPANY_Names)
+```
+
+```{r}
+unique_COMPANY
+```
+
+# unique_COMPANY <-unique_COMPANY[unique_COMPANY != c("ABBV", "ALL", "AMCR", "AMGN", "ANTM", "APA", "AVGO", "AXP", "BA", "BAC", "BIIB", "CARR", "COP","CSCO", "CTVA", "CVX", "DOW", ]
+
+```{r}
+data_elimatedO %>% 
+  group_by(COMPANY) %>% 
+  summarize(n=n()) %>% 
+  filter(n <= 2)
+```
+
+```{r}
+unique_COMPANY_2 <-unique_COMPANY
+
+unique_COMPANY_2 = unique_COMPANY_2[factor(unique_COMPANY_2) %in% c("ABBV","AMCR" ,"BAC"  ,"CARR", "CTVA",  "DOW",   "FB", "GOOG",  "GOOGL", "INTC",  "JNJ", "OTIS", "PSX", "FOX", "FOXA", "HD", "KHC", "LYB", "MDLZ", "MRK", "MRNA", "OTIS", "PEP", "JPM") == FALSE] 
+
+total_number_of_COMPANY <- length(unique_COMPANY)
+total_number_of_COMPANY_2 <- length(unique_COMPANY_2)
+```
+
+
+```{r}
+total_number_of_COMPANY
+total_number_of_COMPANY_2
+```
+
+```{r}
+unique_COMPANY_2[150 + 87]
+```
+
+```{r}
+150 + 87
+```
+
+
+```{r}
+data_elimatedO %>% 
+  filter(COMPANY == "FOXA")
+```
+
+
+
+
+```{r}
+one_year_only <- data_elimatedO %>% 
+  group_by(COMPANY) %>% 
+  mutate(number_of_year = sum(YEAR)) %>% 
+  filter(number_of_year < 2021)
+
+COMPANY_one_year <- one_year_only$COMPANY
+unique_COMPANY_one_year <- unique(COMPANY_one_year)
+
+  #filter(number_of_year < 2)
+  # filter(COMPANY == "ABBV") %>% 
+  # count(YEAR)
+
+unique_COMPANY_one_year
+```
+
+```{r}
+## 61, 62, 63, 64, 90, DALcó thể bị lỗi
+data_elimatedO %>% 
+  filter(COMPANY == unique_COMPANY[152])
+```
+
+
+```{r}
+total_number_of_COMPANY_2
+```
+
+```{r}
+464-237 + 1
+```
+
+
+```{r}
+
+point <- high <- low <- rep(0, 464)
+
+for (i in 1: total_number_of_COMPANY_2) {
+  company <- unique_COMPANY_2[i]
+  
+  data_new <- data_elimatedO %>% 
+    filter(COMPANY == company) %>% 
+    dplyr::select(EARNINGS_Scaled, YEAR) %>% 
+    mutate(min_year = min(YEAR), 
+         max_year = max(YEAR)) %>% 
+    arrange(EARNINGS_Scaled)
+  
+  min_year <- data_new$min_year[1]
+  max_year <- data_new$max_year[1]
+
+  
+  vector <- data_new$EARNINGS_Scaled
+
+  myts <- ts(vector, start=c(min_year), end=c(max_year), frequency=1)
+
+  sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
+                  prior_mu0 = student(mu = 0,sd = 1,df = 7))
+  
+  result = forecast(object = sf1,h = 1)
+  
+  point[i] <- result$mean
+  low[i] <- result$lower[2]
+  high[i] <- result$upper[2]
+}
+
+df <- data.frame(unique_COMPANY_2[1: total_number_of_COMPANY_2], point, low, high)
+df
+```
+
+```{r}
+names(df) 
+
+df <- df %>% 
+  mutate(COMPANY = `unique_COMPANY_2.1.total_number_of_COMPANY_2.`) %>% 
+  select(- `unique_COMPANY_2.1.total_number_of_COMPANY_2.`)
+
+df
+```
+
+```{r}
+testing <- data_elimatedO %>% 
+   group_by(COMPANY) %>% 
+   filter(row_number()==1)
+
+training <- anti_join(data_elimatedO, testing)
+```
+
+```{r}
+testing
+```
+
+```{r}
+bayesian_forecast_earnigns = merge(x = df, y = testing, by = "COMPANY", all.x = TRUE)
+```
+
+```{r}
+bayesian_forecast_earnigns
+```
+
+
+```{r}
+bayesian_forecast_earnigns <- bayesian_forecast_earnigns %>% 
+  select(COMPANY, point, low, high, YEAR, Earnings_next_year_Scaled)
+```
+
+```{r}
+bayesian_forecast_earnigns
+```
+
+```{r}
+write_csv(bayesian_forecast_earnigns, "bayesian_forecast_earnigns.csv")
+```
+
+
+
+
+
+
+
+
+
+
+
+
