@@ -106,79 +106,42 @@ library(bayesforecast)
 
 # Reason to use Bayesian forecast: 
 
-The reason that we are using Bayesian forecast is that using Bayesian forecast, we could see the prediction of the earnings not for next year but for 10 years in the future. Bayesian forecast was created based on seasonal order, trend or seasonality, which could predict the model fairly accurately. 
+The reason that we are using Bayesian forecast is that using Bayesian forecast accounts for seasonal order, trend or seasonality, which could predict the model fairly accurately. Moreover, Bayesian Forecast can also automate the process within the stan_sarima with auto_arima, in which the model will see which order, seasonal or trend fits with certain companies and variables. 
 
-After running the model, we then move on to predict the earnings of the future year for the companies. The companies we are going to predict will be Amazon (symbol: "AMZN"), American Airlines (symbol: "AAL"), and Koka Kola (symbol: "KO"). 
+For Bayesian Forecast, we will first try to see the accuracy rate of the model compared to our complex hierarchical model. After that, using Bayesian Forecast, we will try to see what are the earnings after ten years for Amazon (symbol: "AMZN") and American Airlines (symbol: "AAL"). 
+
+# Alicia's comments:How did you tune your SARIMA model? Why? What does this assume about the relationships? 
+
+Here, for the model, we will use the default stan_sarima model in order to predict the earnings for the company. The reason for that is because for each company, it will have different order, seasonal and period. Manually picking the order and seasonal for each company might result in large errors as each company belongs in different fields, different sectors and also have different stories. Manually picking each company might result in a lot of inaccuracies. 
+
+# What does this assume about the relationships?
+
+As we choose the default prior for the companies, it will assume that each company will have a prior normal function for the moving average and auto-regressive parameters. Additionally, the auto-regressive parameters and moving averages will have the same normal function of N(0,0.5)
+
+<!-- The default priors used in Sarima are: -->
+
+<!-- ar ~ normal(0,0.5) -->
+
+<!-- ma ~ normal(0,0.5) -->
+
+<!-- mu0 ~ t-student(0,2.5,6) -->
+
+<!-- sigma0 ~ t-student(0,1,7) -->
+
+<!-- sar ~ normal(0,0.5) -->
+
+<!-- sma ~ normal(0,0.5) -->
+
+<!-- breg ~ t-student(0,2.5,6) -->
 
 
-```{r}
-AMZN <- data %>% 
-  filter(COMPANY == 'AMZN') %>% 
-  dplyr::select(EARNINGS_Scaled) %>% 
-  arrange(EARNINGS_Scaled)
+### Prediction for next year's earnings only: 
 
-vector <- AMZN$EARNINGS_Scaled
+Here, in order to predict next year's earnings for every company, as it acts like a time series model, we need to have companies that have at least 3 years of earnings. We first eliminate the company that have only 2 years of earnings in this dataset, then we will create a function to find the earnings for the next year of these companies. 
 
-myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
-
-sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
-                  prior_mu0 = student(mu = 0,sd = 1,df = 7))
-```
-
-```{r fig3}
-autoplot(forecast(object = sf1,h = 12))
-```
-
-First, for Amazon, we could see that the earnings are predicted to increase from 2021 to 2030, moving from 21 billions to around 38 billions in 2030. However, we could see that the prediction states that the earnings growth tends to slow down over time over the period. 
-
-We then move on to the other companies: Microsoft and American Airlines:
-
-```{r}
-AAL <- data %>% 
-  filter(COMPANY == 'AAL') %>% 
-  dplyr::select(EARNINGS_Scaled) %>% 
-  arrange(EARNINGS_Scaled)
-
-vector <- AAL$EARNINGS_Scaled
-
-myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
-
-sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
-                  prior_mu0 = student(mu = 0,sd = 1,df = 7))
-```
 
 ```{r}
-check_residuals(sf1)
-autoplot(forecast(object = sf1,h = 12))
-```
-
-For American Airlines, we see a different story. As we can see from the graph, as airlines industry is an extremely cyclical field, the earnings fluctuate a lot. We could see that they fluctuate a lot during the previous years. With that in mind, the model predicts that American Airlines will not improve the much during the following years from 2021 to 2030 as predicting a cyclical company's earnings could be a really difficult story. It did not show the similar pattern as Amazon. 
-
-```{r}
-KO <- data %>% 
-  filter(COMPANY == 'KO') %>% 
-  dplyr::select(EARNINGS_Scaled) %>% 
-  arrange(EARNINGS_Scaled)
-
-vector_KO <- KO$EARNINGS_Scaled
-
-myts_KO <- ts(vector_KO, start=c(1999), end=c(2015), frequency=1)
-
-sfKO = stan_sarima(ts = myts_KO,order = c(1,1,1),seasonal = c(1,1,1),
-                  prior_mu0 = student(mu = 0,sd = 1,df = 7))
-```
-
-```{r}
-autoplot(forecast(object = sfKO,h = 12))
-```
-
-```{r}
-forecast(object = sfKO,h = 12)
-```
-
-For Coca Cola, it follows the same case as American Airlines. Even though the earnings increase over time, the model predicts that Ford's earning will stay relatively the same throughout the year from 2021 to 2030. It should be fairly clear as Coca Cola is a company that has developed for a really long period of time and can be considered to be a dividend company. With that in mind, it is fairly reasonable to see the earnings of the company to stay relatively the same after a period. 
-
-```{r}
+## Original dataset: 
 Q <- quantile(data$Earnings_next_year_Scaled, probs=c(.25, .75), na.rm = TRUE)
 iqr <- IQR(data$Earnings_next_year_Scaled, na.rm = TRUE)
 up <-  Q[2]+.90*iqr # Upper Range  
@@ -186,9 +149,6 @@ low<- Q[1]-.90*iqr # Lower Range
 eliminated<- subset(data, data$Earnings_next_year_Scaled > (low) & data$Earnings_next_year_Scaled < (up))
 data_elimatedO <- eliminated
 ```
-
-
-### Prediction for next year's earnings only: 
 
 ```{r}
 COMPANY_Names <- data_elimatedO$COMPANY
@@ -198,8 +158,6 @@ unique_COMPANY <- unique(COMPANY_Names)
 ```{r}
 unique_COMPANY
 ```
-
-# unique_COMPANY <-unique_COMPANY[unique_COMPANY != c("ABBV", "ALL", "AMCR", "AMGN", "ANTM", "APA", "AVGO", "AXP", "BA", "BAC", "BIIB", "CARR", "COP","CSCO", "CTVA", "CVX", "DOW", ]
 
 ```{r}
 data_elimatedO %>% 
@@ -223,54 +181,7 @@ total_number_of_COMPANY
 total_number_of_COMPANY_2
 ```
 
-```{r}
-unique_COMPANY_2[150 + 87]
-```
-
-```{r}
-150 + 87
-```
-
-
-```{r}
-data_elimatedO %>% 
-  filter(COMPANY == "FOXA")
-```
-
-
-
-
-```{r}
-one_year_only <- data_elimatedO %>% 
-  group_by(COMPANY) %>% 
-  mutate(number_of_year = sum(YEAR)) %>% 
-  filter(number_of_year < 2021)
-
-COMPANY_one_year <- one_year_only$COMPANY
-unique_COMPANY_one_year <- unique(COMPANY_one_year)
-
-  #filter(number_of_year < 2)
-  # filter(COMPANY == "ABBV") %>% 
-  # count(YEAR)
-
-unique_COMPANY_one_year
-```
-
-```{r}
-## 61, 62, 63, 64, 90, DALcó thể bị lỗi
-data_elimatedO %>% 
-  filter(COMPANY == unique_COMPANY[152])
-```
-
-
-```{r}
-total_number_of_COMPANY_2
-```
-
-```{r}
-464-237 + 1
-```
-
+After finding all of the desirable companies, we are left with 464 companies. We then create a function in order to predict the earnings next year for these 464 companies using Bayesian Forecast: 
 
 ```{r}
 
@@ -294,8 +205,7 @@ for (i in 1: total_number_of_COMPANY_2) {
 
   myts <- ts(vector, start=c(min_year), end=c(max_year), frequency=1)
 
-  sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
-                  prior_mu0 = student(mu = 0,sd = 1,df = 7))
+  sf1 = stan_sarima(ts = myts, iter = 2 * 5000)
   
   result = forecast(object = sf1,h = 1)
   
@@ -308,14 +218,14 @@ df <- data.frame(unique_COMPANY_2[1: total_number_of_COMPANY_2], point, low, hig
 df
 ```
 
+After having the dataset, we then combine the function with the actual dataset in order to see the accuracy rate for these models in which it predicts the earnings next year for these companies. 
+
 ```{r}
 names(df) 
 
 df <- df %>% 
   mutate(COMPANY = `unique_COMPANY_2.1.total_number_of_COMPANY_2.`) %>% 
   select(- `unique_COMPANY_2.1.total_number_of_COMPANY_2.`)
-
-df
 ```
 
 ```{r}
@@ -351,6 +261,87 @@ bayesian_forecast_earnigns
 ```{r}
 write_csv(bayesian_forecast_earnigns, "bayesian_forecast_earnigns.csv")
 ```
+
+```{r}
+bayesian_forecast_earnigns <- read.csv("bayesian_forecast_earnigns.csv")
+```
+
+After combining the two datasets, we then try to see the accuracy rate for the Bayesian forecast model: 
+
+```{r}
+bayesian_forecast_earnigns <- bayesian_forecast_earnigns %>% 
+  mutate(median_dist = abs(point - Earnings_next_year_Scaled)) %>% 
+  mutate(Is_90 = (Earnings_next_year_Scaled >= low) & (Earnings_next_year_Scaled <= high))
+
+mean(bayesian_forecast_earnigns$median_dist)
+mean(bayesian_forecast_earnigns$Is_90)
+```
+
+Overall, as we can see, the accuracy is not really high. The distance from the median is 0.6589, which shows that a company's earnings will be off by around 0.6589 billions, which is a fairly high number. 
+
+Moreover, only 51.5% of the companies is within the 90% percentile, which is a relatively small number. Overall, the model performs worse than the hierarchical model on section 3. 
+
+
+```{r}
+AMZN <- data %>% 
+  filter(COMPANY == 'AMZN') %>% 
+  dplyr::select(EARNINGS_Scaled) %>% 
+  arrange(EARNINGS_Scaled)
+
+vector <- AMZN$EARNINGS_Scaled
+
+myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
+
+sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
+                  prior_mu0 = student(mu = 0,sd = 1,df = 7), iter = 2 * 5000)
+```
+
+
+```{r fig3}
+autoplot(forecast(object = sf1,h = 12))
+```
+
+First, for Amazon, we could see that the earnings are predicted to increase from 2021 to 2030, moving from 21 billions to around 38 billions in 2030. However, we could see that the prediction states that the earnings growth tends to slow down over time over the period. 
+
+We then move on to the other companies: Microsoft and American Airlines:
+
+```{r}
+AAL <- data %>% 
+  filter(COMPANY == 'AAL') %>% 
+  dplyr::select(EARNINGS_Scaled) %>% 
+  arrange(EARNINGS_Scaled)
+
+vector <- AAL$EARNINGS_Scaled
+
+myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
+
+sf1 = stan_sarima(ts = myts,order = c(1,1,1),seasonal = c(1,1,1),
+                  prior_mu0 = student(mu = 0,sd = 1,df = 7))
+```
+
+
+```{r}
+AAL <- data %>% 
+  filter(COMPANY == 'AAL') %>% 
+  dplyr::select(EARNINGS_Scaled) %>% 
+  arrange(EARNINGS_Scaled)
+
+vector <- AAL$EARNINGS_Scaled
+
+myts <- ts(vector, start=c(1999), end=c(2021), frequency=1)
+
+sf1 = stan_sarima(ts = myts,iter = 2 * 5000)
+```
+
+
+```{r}
+check_residuals(sf1)
+autoplot(forecast(object = sf1,h = 12))
+```
+
+For American Airlines, we see a different story. As we can see from the graph, as airlines industry is an extremely cyclical field, the earnings fluctuate a lot. We could see that they fluctuate a lot during the previous years. With that in mind, the model predicts that American Airlines will not improve the much during the following years from 2021 to 2030 as predicting a cyclical company's earnings could be a really difficult story. It did not show the similar pattern as Amazon. 
+
+
 
 
 
